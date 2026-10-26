@@ -1,0 +1,87 @@
+digraph kodes_erd {
+  graph [rankdir=LR, splines=spline, nodesep=0.5, ranksep=1.0, pad=0.35, bgcolor="white", newrank=true,
+         fontname="Inter", fontsize=22, labelloc=t, labeljust=l,
+         label=<<b>kodes retail — refined erd</b><br/><font point-size="13" color="#5A6577">crow's foot notation · 7 tables in 3nf · pk primary key · fk foreign key · uq unique · null = optional</font><br/> >];
+  node  [shape=plain, fontname="DejaVu Sans Mono", fontsize=11];
+  edge  [dir=both, color="#3B4A5A", penwidth=1.4, arrowsize=1.25, fontname="Inter", fontsize=11, fontcolor="#3B4A5A"];
+
+  country [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>country</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="country_id_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>country_id</u></td><td align="left" port="country_id_e">smallint unsigned</td></tr>
+      <tr><td bgcolor="#EEF1F4" port="country_name_w"><font color="#5A6577"><b>uq</b></font></td><td align="left">country_name</td><td align="left" port="country_name_e">varchar(60)</td></tr>
+      <tr><td bgcolor="#EEF1F4" port="iso_code_w"><font color="#5A6577"><b>uq</b></font></td><td align="left">iso_code</td><td align="left" port="iso_code_e">char(2) null</td></tr>
+    </table>>];
+
+  customer [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>customer</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="customer_id_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>customer_id</u></td><td align="left" port="customer_id_e">int unsigned</td></tr>
+      <tr><td bgcolor="#FFF2CC" port="country_id_w"><font color="#7F6000"><b>fk</b></font></td><td align="left">country_id</td><td align="left" port="country_id_e">smallint unsigned</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="customer_name_w"> </td><td align="left">customer_name</td><td align="left" port="customer_name_e">varchar(100) null</td></tr>
+      <tr><td bgcolor="#EEF1F4" port="email_w"><font color="#5A6577"><b>uq</b></font></td><td align="left">email</td><td align="left" port="email_e">varchar(254) null</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="phone_w"> </td><td align="left">phone</td><td align="left" port="phone_e">varchar(20) null</td></tr>
+    </table>>];
+
+  invoice [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>invoice</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="invoice_no_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>invoice_no</u></td><td align="left" port="invoice_no_e">varchar(10)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="invoice_type_w"> </td><td align="left">invoice_type</td><td align="left" port="invoice_type_e">varchar(12)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="invoice_date_w"> </td><td align="left">invoice_date</td><td align="left" port="invoice_date_e">datetime</td></tr>
+      <tr><td bgcolor="#FFF2CC" port="customer_id_w"><font color="#7F6000"><b>fk</b></font></td><td align="left">customer_id</td><td align="left" port="customer_id_e">int unsigned null</td></tr>
+      <tr><td bgcolor="#FFF2CC" port="country_id_w"><font color="#7F6000"><b>fk</b></font></td><td align="left">country_id</td><td align="left" port="country_id_e">smallint unsigned</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="status_w"> </td><td align="left">status</td><td align="left" port="status_e">varchar(10)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="cancelled_at_w"> </td><td align="left">cancelled_at</td><td align="left" port="cancelled_at_e">datetime null</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="cancel_reason_w"> </td><td align="left">cancel_reason</td><td align="left" port="cancel_reason_e">varchar(255) null</td></tr>
+    </table>>];
+
+  invoice_line [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>invoice_line</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="invoice_no_w"><font color="#1F4E79"><b>pk, fk</b></font></td><td align="left"><u>invoice_no</u></td><td align="left" port="invoice_no_e">varchar(10)</td></tr>
+      <tr><td bgcolor="#DCE8F5" port="line_no_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>line_no</u></td><td align="left" port="line_no_e">smallint unsigned</td></tr>
+      <tr><td bgcolor="#FFF2CC" port="stock_code_w"><font color="#7F6000"><b>fk</b></font></td><td align="left">stock_code</td><td align="left" port="stock_code_e">varchar(20)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="quantity_w"> </td><td align="left">quantity</td><td align="left" port="quantity_e">int</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="unit_price_w"> </td><td align="left">unit_price</td><td align="left" port="unit_price_e">decimal(10,3)</td></tr>
+    </table>>];
+
+  product [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>product</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="stock_code_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>stock_code</u></td><td align="left" port="stock_code_e">varchar(20)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="description_w"> </td><td align="left">description</td><td align="left" port="description_e">varchar(100)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="unit_price_w"> </td><td align="left">unit_price</td><td align="left" port="unit_price_e">decimal(10,2)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="product_type_w"> </td><td align="left">product_type</td><td align="left" port="product_type_e">varchar(10)</td></tr>
+    </table>>];
+
+  inventory [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>inventory</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="stock_code_w"><font color="#1F4E79"><b>pk, fk</b></font></td><td align="left"><u>stock_code</u></td><td align="left" port="stock_code_e">varchar(20)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="qty_on_hand_w"> </td><td align="left">qty_on_hand</td><td align="left" port="qty_on_hand_e">int</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="reorder_level_w"> </td><td align="left">reorder_level</td><td align="left" port="reorder_level_e">int</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="last_updated_w"> </td><td align="left">last_updated</td><td align="left" port="last_updated_e">datetime</td></tr>
+    </table>>];
+
+  stock_adjustment [label=<
+    <table border="0" cellborder="1" cellspacing="0" cellpadding="6" color="#A9B7C6">
+      <tr><td colspan="3" bgcolor="#1F4E79"><font color="#FFFFFF" face="Inter" point-size="13"><b>stock_adjustment</b></font></td></tr>
+      <tr><td bgcolor="#DCE8F5" port="adjustment_id_w"><font color="#1F4E79"><b>pk</b></font></td><td align="left"><u>adjustment_id</u></td><td align="left" port="adjustment_id_e">int unsigned</td></tr>
+      <tr><td bgcolor="#FFF2CC" port="stock_code_w"><font color="#7F6000"><b>fk</b></font></td><td align="left">stock_code</td><td align="left" port="stock_code_e">varchar(20)</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="quantity_change_w"> </td><td align="left">quantity_change</td><td align="left" port="quantity_change_e">int</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="reason_w"> </td><td align="left">reason</td><td align="left" port="reason_e">varchar(100) null</td></tr>
+      <tr><td bgcolor="#FFFFFF" port="adjusted_at_w"> </td><td align="left">adjusted_at</td><td align="left" port="adjusted_at_e">datetime</td></tr>
+    </table>>];
+
+  { rank=same; invoice; product; }
+  { rank=same; invoice_line; inventory; stock_adjustment; }
+  country:country_id_e    -> customer:country_id_w        [arrowtail=teetee, arrowhead=crowodot, label="registered in"];
+  country:country_id_e    -> invoice:country_id_w         [arrowtail=teetee, arrowhead=crowodot, label="recorded on"];
+  customer:customer_id_e  -> invoice:customer_id_w        [arrowtail=teeodot, arrowhead=crowodot, label="places"];
+  invoice:invoice_no_e    -> invoice_line:invoice_no_w    [arrowtail=teetee, arrowhead=crowtee, label="contains"];
+  product:stock_code_e    -> invoice_line:stock_code_w    [arrowtail=teetee, arrowhead=crowodot, label="sold as"];
+  product:stock_code_e    -> inventory:stock_code_w       [arrowtail=teetee, arrowhead=teeodot, label="stocked as"];
+  product:stock_code_e    -> stock_adjustment:stock_code_w [arrowtail=teetee, arrowhead=crowodot, label="corrected by"];
+  invoice -> product [style=invis];
+}

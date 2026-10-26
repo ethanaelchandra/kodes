@@ -1,0 +1,14 @@
+digraph legend {
+  graph [rankdir=LR, bgcolor="white", pad=0.25, nodesep=0.18, ranksep=0.9, fontname="Inter", fontsize=13, labelloc=t, labeljust=l,
+         label=<<font color="#3B4A5A"><b>how to read the line ends</b></font>>];
+  node [shape=plaintext, fontname="Inter", fontsize=12, fontcolor="#3B4A5A", width=0, height=0, margin="0.04,0.02"];
+  edge [dir=back, color="#3B4A5A", penwidth=1.4, arrowsize=1.25];
+  a4 [label=" "]; b4 [label="zero or many"];
+  a3 [label=" "]; b3 [label="one or many"];
+  a2 [label=" "]; b2 [label="zero or one"];
+  a1 [label=" "]; b1 [label="exactly one"];
+  a4 -> b4 [arrowtail=crowodot];
+  a3 -> b3 [arrowtail=crowtee];
+  a2 -> b2 [arrowtail=teeodot];
+  a1 -> b1 [arrowtail=teetee];
+}
