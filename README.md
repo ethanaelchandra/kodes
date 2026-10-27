@@ -1,54 +1,72 @@
-# kodes retail store — relational database
+kodes retail · relational database overhaul
 
-database technology final project (aol), binus university. kodes retail's single csv of 1,067,371 transaction lines becomes a 7-table relational database in 3nf, imported in full, with five business queries, a stock trigger and a stored procedure.
+database course project. the single csv export of kodes retail (1,067,371 transaction lines, december 2009 to december 2011) is profiled, cleaned, normalized to 3nf and rebuilt as a mysql 8 database with constraints, five business queries, inventory triggers and a stored procedure.
 
-the full documentation (case, sample data, anomalies, normalization, erd, data cleaning, results) is on the notion page; this repo holds the code and data it refers to.
+full documentation (case, anomalies and functional dependencies, unf to 3nf step by step, erd, data cleaning process, query results): https://app.notion.com/p/40687299610c8124acdafc7bbd130ab2
 
-## what's here
+deliverables
 
-| path | what it is |
-| --- | --- |
-| `sql/schema.sql` | phase 2: database, 7 tables, every constraint, and the full csv import and cleaning |
-| `sql/queries.sql` | phase 3: the five required queries |
-| `sql/advanced.sql` | phase 4: the stock trigger, supporting triggers, `GetCustomerInvoiceHistory`, and a rolled-back demo |
-| `backup/kodes_retail_backup.sql` | export of the finished database (all three scripts run), restorable without the csv |
-| `backup/kodes_retail_backup.sql.gz` | the same backup compressed, for phpmyadmin's upload limit |
-| `docs/erd.png` | the refined erd in crow's foot notation (`erd.dot` and `legend.dot` are its graphviz source) |
-| `data/online_retail_data.zip` | the source csv as given for the project |
-| `analysis/profile_data.py` | recomputes every count in the anomaly chapter from the csv |
-| `analysis/verify_import.py`, `verify_queries.py`, `export_tables.sh` | rebuild the tables and query results independently in pandas and compare them with the database |
+- `sql/schema.sql`: phase 2, every create table statement with primary and foreign keys, on delete and on update actions, not null, unique, check and default constraints
+- `sql/queries.sql`: phase 3, the five business scenarios (price update, order cancellation, sales per country, vip customers, germany cross-selling)
+- `sql/advanced.sql`: phase 4, the inventory triggers and the stored procedure `GetCustomerInvoiceHistory`, with a self-cleaning test section
+- `backup/kodes_retail_backup.sql.gz`: full database backup (schema, all data, triggers, procedure)
+- `docs/erd.svg`, `docs/erd.png`: crow's foot erd
 
-## run it
+supporting files
 
-option a, build from the csv (about 2 minutes):
+- `sql/load_data.sql`: imports the cleaned csv files (the full dataset, not a sample)
+- `scripts/profile_data.py`: finds the anomalies and tests the functional dependencies in the raw csv
+- `scripts/clean_data.py`: the cleaning rules and the split into the 3nf tables
+- `scripts/normalization_samples.py`: the unf, 1nf, 2nf and 3nf example tables used in the documentation
+- `scripts/draw_erd.py`: draws the erd
+- `data/raw/online_retail_data.csv.gz`: the raw csv as provided, gzipped
+- `data/clean/*.csv`: one cleaned csv per table, ready for import
+- `data/clean/rejected_rows.csv.gz`: every removed row with the rule that removed it
+- `data/clean/cleaning_report.json`, `data/profile/profile_report.json`: the counts behind every number in the documentation
+- `docs/results/*.txt`: the output of each script from the last full run
+- `run_all.sh`: rebuilds everything from the raw csv in phase order
 
-1. unzip `data/online_retail_data.zip`, then set the path on the line marked `csv path` in `sql/schema.sql`.
-2. allow local file loading once: `SET GLOBAL local_infile = 1;`
-3. from the command line (xampp shell or a terminal):
+final database. legend: rows = rows after import, pk = primary key
+
+| table | rows | pk |
+|---|---|---|
+| countries | 43 | country_id |
+| customers | 5,938 | customer_id |
+| products | 4,753 | stock_code |
+| inventory | 4,737 | stock_code |
+| invoices | 48,235 | invoice_no |
+| invoice_lines | 1,026,947 | invoice_no, line_no |
+
+- 1,026,947 raw rows imported and 40,424 rejected with a recorded reason (= 1,067,371).
+- customers holds 5,923 registered customers and 15 guest accounts (one per country) for sales without a customer id.
+
+how to run
+
+option a, restore the backup (fastest):
 
 ```
-mysql -u root --local-infile=1 < sql/schema.sql
-mysql -u root < sql/queries.sql
-mysql -u root < sql/advanced.sql
+gunzip -c backup/kodes_retail_backup.sql.gz | mysql -u root -p
 ```
 
-option b, restore the finished database (about 15 seconds):
+in phpmyadmin: open import and choose the `.sql.gz` file.
+
+option b, rebuild everything from the raw csv (python 3 with pandas, mysql 8.0.16 or newer):
 
 ```
-mysql -u root < backup/kodes_retail_backup.sql
+pip install pandas
+./run_all.sh                        # mysql user root, no password
+MYSQL_PWD=yourpassword ./run_all.sh # with a password
 ```
 
-both were tested on mysql 8.0.46 and mariadb 10.11 with identical results. xampp ships mariadb 10.4, which was not tested directly; the scripts avoid mysql-only syntax (no `REGEXP_LIKE`, no `utf8mb4_0900` collations).
+option c, step by step from the repository root:
 
-## results at a glance
+```
+python3 scripts/clean_data.py data/raw/online_retail_data.csv.gz
+mysql -u root -p < sql/schema.sql
+mysql -u root -p -e "SET GLOBAL local_infile = 1;"
+mysql --local-infile=1 -u root -p kodes_retail < sql/load_data.sql
+mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
+mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/advanced.sql
+```
 
-| item | result |
-| --- | --- |
-| csv rows | 1,067,371 = 1,039,526 invoice lines + 5,305 stock adjustments + 22,523 repeated rows + 17 test rows |
-| tables | country 43 · customer 5,940 · product 5,129 · inventory 5,106 · invoice 48,364 · invoice_line 1,039,526 · stock_adjustment 5,305 |
-| query 1 | 3,920 goods under 5.00 raised by 8% (3,914 prices change after rounding) |
-| query 2 | invoice 581587 cancelled, all 16 lines kept |
-| query 3 | 43 countries; united kingdom first with 17,454,608.28 from 36,527 invoices |
-| query 4 | 1,213 customers above the 2,751.38 average spend |
-| query 5 | 1,505 goods never bought from germany but bought in 2 or more other countries |
-| trigger demo | 14 of 14 invalid changes refused |
+tested on mysql 8.0.46. the scripts avoid mysql-8-only collations, so they also run on mariadb 10.4 or newer (xampp). note that `queries.sql` changes data on purpose (query 1 raises prices, query 2 cancels invoice 581587), and the backup already includes those changes.

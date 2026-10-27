@@ -1,0 +1,46 @@
+{
+  "summary": {
+    "raw_rows": 1067371,
+    "raw_invoices": 53628,
+    "raw_revenue": "19287250.568",
+    "kept_rows": 1026947,
+    "rejected_rows": 40424,
+    "kept_plus_rejected_equals_raw": true,
+    "kept_invoices": 48235,
+    "kept_revenue": "19224458.348",
+    "invoice_lines_revenue": "19224458.348",
+    "revenue_reconciles": true,
+    "sale_invoices": 40028,
+    "return_invoices": 8207,
+    "registered_customers": 5923,
+    "guest_accounts": 15,
+    "stock_items": 4737,
+    "non_stock_items": 16,
+    "max_lines_per_invoice": 1114
+  },
+  "table_rows": {
+    "countries": 43,
+    "customers": 5938,
+    "products": 4753,
+    "inventory": 4737,
+    "invoices": 48235,
+    "invoice_lines": 1026947
+  },
+  "rejected_by_reason": {
+    "exact duplicate of an earlier row": 34335,
+    "zero-price line with no customer (warehouse stock adjustment, not a sale)": 5943,
+    "internal bookkeeping or test entry, not a customer transaction": 145,
+    "quantity sign does not match the document type": 1
+  }
+}
+rule r1: -34,335 -> 1,033,036  (exact duplicate of an earlier row)
+rule r2: -145 -> 1,032,891  (internal bookkeeping or test entry, not a customer transaction)
+rule r3: -5,943 -> 1,026,948  (zero-price line with no customer (warehouse stock adjustment, not a sale))
+rule r4: -1 -> 1,026,947  (quantity sign does not match the document type)
+correction c1: stock codes trimmed and upper-cased (e.g. 15056bl -> 15056BL)  {"values_changed": 3346}
+correction c2: descriptions trimmed and repeated spaces collapsed  {"values_changed": 240346}
+correction c3: invoice date set to the earliest timestamp of the invoice  {"invoices_changed": 83}
+correction c4: country labels standardised: EIRE -> Ireland, RSA -> South Africa, USA -> United States  {"rows_changed": 18354}
+correction c5: customer country = country with the most invoices (tie: most recent)  {"customers_changed": 12}
+correction c6: one canonical description per stock code (most frequent, tie: most recent)  {"products_changed": 596, "rows_changed": 59045}
+correction c7: rows without Customer ID assigned to a guest account per country (ids 1..15)  {"rows_changed": 229158, "guest_accounts": 15}

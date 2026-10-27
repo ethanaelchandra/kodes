@@ -1,157 +1,157 @@
 -- =============================================================================
---  kodes retail store | advanced.sql | phase 4: advanced features & automation
--- -----------------------------------------------------------------------------
---  run after schema.sql (and queries.sql). mysql 8.0.16+ / mariadb 10.4+
---
---  creates
---    trg_invoice_line_before_insert     checks a line before it is recorded
---    trg_invoice_line_after_insert      (required) every sale or return moves the stock
---    trg_invoice_line_before_update     recorded lines are read-only
---    trg_invoice_line_before_delete     recorded lines cannot be deleted
---    trg_invoice_after_update           cancelling an order puts its goods back
---    trg_stock_adjustment_after_insert  warehouse corrections move the stock
---    GetCustomerInvoiceHistory(id)      (required) every invoice of one customer
---
---  the demo at the end runs in one transaction and is rolled back, so the data
---  is left exactly as it was.
+-- kodes retail | phase 4: advanced features & automation
+-- file    : advanced.sql
+-- needs   : schema.sql + load_data.sql (queries.sql optional)
+-- run     : mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/advanced.sql
+-- creates : 4 triggers that keep inventory.quantity_on_hand in step with every
+--           sale, return, correction and cancellation, and the stored procedure
+--           GetCustomerInvoiceHistory(customer_id).
+-- notes   : - the triggers are created after the historical import, so the
+--             opening stock already reflects history; only new transactions
+--             move it from here on.
+--           - postage, fees and vouchers have no inventory row, so their lines
+--             simply do not touch stock.
+--           - invoices are cancelled, never deleted: mysql does not fire
+--             triggers for rows removed by ON DELETE CASCADE.
 -- =============================================================================
 
 USE kodes_retail;
+-- literals and variables use the same collation as the tables
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-DROP TRIGGER   IF EXISTS trg_invoice_line_before_insert;
-DROP TRIGGER   IF EXISTS trg_invoice_line_after_insert;
-DROP TRIGGER   IF EXISTS trg_invoice_line_before_update;
-DROP TRIGGER   IF EXISTS trg_invoice_line_before_delete;
-DROP TRIGGER   IF EXISTS trg_invoice_after_update;
-DROP TRIGGER   IF EXISTS trg_stock_adjustment_after_insert;
+DROP TRIGGER   IF EXISTS trg_invoice_lines_after_insert;
+DROP TRIGGER   IF EXISTS trg_invoice_lines_after_update;
+DROP TRIGGER   IF EXISTS trg_invoice_lines_after_delete;
+DROP TRIGGER   IF EXISTS trg_invoices_after_status_change;
 DROP PROCEDURE IF EXISTS GetCustomerInvoiceHistory;
-DROP PROCEDURE IF EXISTS demo_expect_error;
 
 DELIMITER $$
 
--- -----------------------------------------------------------------------------
---  checks before a line is recorded. SIGNAL aborts the INSERT, so a refused
---  line is never saved and the stock is never touched.
---    * no new lines on a cancelled invoice
---    * a sale line needs a positive quantity, a credit-note line a negative one
---    * a sale cannot take a product's stock below zero
--- -----------------------------------------------------------------------------
-CREATE TRIGGER trg_invoice_line_before_insert
-BEFORE INSERT ON invoice_line
+-- =============================================================================
+-- trigger 1 (the required one): recording a sale or return line updates stock.
+--   sale line   (quantity > 0) -> stock goes down
+--   return line (quantity < 0) -> stock goes up
+-- it also rejects a line whose sign does not match the invoice type, and a sale
+-- that would take stock below zero (no overselling).
+-- =============================================================================
+CREATE TRIGGER trg_invoice_lines_after_insert
+AFTER INSERT ON invoice_lines
 FOR EACH ROW
 BEGIN
-    DECLARE v_type    VARCHAR(12);
-    DECLARE v_status  VARCHAR(10);
-    DECLARE v_on_hand INT;
-    DECLARE v_msg     VARCHAR(200);
+    DECLARE v_type   VARCHAR(10);
+    DECLARE v_status VARCHAR(10);
+    DECLARE v_stock  INT;
+    DECLARE v_msg    VARCHAR(255);
 
-    SET v_type   = (SELECT invoice_type FROM invoice WHERE invoice_no = NEW.invoice_no);
-    SET v_status = (SELECT status       FROM invoice WHERE invoice_no = NEW.invoice_no);
+    SELECT invoice_type, status
+      INTO v_type, v_status
+    FROM invoices
+    WHERE invoice_no = NEW.invoice_no;
 
-    IF v_status = 'Cancelled' THEN
-        SET v_msg = CONCAT('invoice ', NEW.invoice_no, ' is cancelled, so no lines can be added');
+    -- a sale line must be positive, a return line negative
+    IF (v_type = 'Sale' AND NEW.quantity < 0) OR (v_type = 'Return' AND NEW.quantity > 0) THEN
+        SET v_msg = CONCAT('quantity ', NEW.quantity, ' does not match ',
+                           LOWER(v_type), ' invoice ', NEW.invoice_no);
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
     END IF;
 
-    IF v_type = 'SALE' AND NEW.quantity < 0 THEN
-        SET v_msg = CONCAT('a sale line needs a positive quantity (', NEW.quantity, ' given)');
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
-    END IF;
+    -- only completed invoices move stock; NULL = item without an inventory row
+    IF v_status = 'Completed' THEN
+        SET v_stock = (SELECT quantity_on_hand FROM inventory WHERE stock_code = NEW.stock_code);
 
-    IF v_type = 'CREDIT_NOTE' AND NEW.quantity > 0 THEN
-        SET v_msg = CONCAT('a credit-note line needs a negative quantity (', NEW.quantity, ' given)');
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
-    END IF;
+        IF v_stock IS NOT NULL THEN
+            IF v_stock - NEW.quantity < 0 THEN
+                SET v_msg = CONCAT('not enough stock for ', NEW.stock_code, ': ',
+                                   v_stock, ' on hand, ', NEW.quantity, ' requested');
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+            END IF;
 
-    IF NEW.quantity > 0 THEN
-        SET v_on_hand = (SELECT qty_on_hand FROM inventory WHERE stock_code = NEW.stock_code);
-        IF v_on_hand IS NOT NULL AND v_on_hand < NEW.quantity THEN
-            SET v_msg = CONCAT('not enough stock of ', NEW.stock_code, ': ', v_on_hand,
-                               ' on hand, ', NEW.quantity, ' requested');
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+            UPDATE inventory
+            SET quantity_on_hand = quantity_on_hand - NEW.quantity
+            WHERE stock_code = NEW.stock_code;
         END IF;
     END IF;
 END $$
 
--- -----------------------------------------------------------------------------
---  required trigger: whenever a sale or a return is recorded, the product's
---  inventory level follows it.
---    sale line         quantity > 0  -> stock goes down by the quantity
---    credit-note line  quantity < 0  -> stock goes up (goods come back)
---  services and vouchers have no inventory row, so nothing changes for them.
--- -----------------------------------------------------------------------------
-CREATE TRIGGER trg_invoice_line_after_insert
-AFTER INSERT ON invoice_line
+-- =============================================================================
+-- trigger 2: a corrected line (new quantity or product) moves the difference.
+-- the old movement is undone and the new one applied; the CHECK constraint on
+-- inventory still blocks any result below zero.
+-- =============================================================================
+CREATE TRIGGER trg_invoice_lines_after_update
+AFTER UPDATE ON invoice_lines
 FOR EACH ROW
 BEGIN
-    UPDATE inventory
-    SET    qty_on_hand = qty_on_hand - NEW.quantity
-    WHERE  stock_code  = NEW.stock_code;
-END $$
+    IF (SELECT status FROM invoices WHERE invoice_no = OLD.invoice_no) = 'Completed' THEN
+        UPDATE inventory
+        SET quantity_on_hand = quantity_on_hand + OLD.quantity
+        WHERE stock_code = OLD.stock_code;
+    END IF;
 
--- -----------------------------------------------------------------------------
---  recorded lines are read-only: changing or deleting one would make the stock
---  and the audit trail wrong. corrections go through a cancellation or a
---  credit note instead.
--- -----------------------------------------------------------------------------
-CREATE TRIGGER trg_invoice_line_before_update
-BEFORE UPDATE ON invoice_line
-FOR EACH ROW
-BEGIN
-    SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'invoice lines are read-only: cancel the invoice or issue a credit note';
-END $$
-
-CREATE TRIGGER trg_invoice_line_before_delete
-BEFORE DELETE ON invoice_line
-FOR EACH ROW
-BEGIN
-    SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'invoice lines cannot be deleted: cancel the invoice or issue a credit note';
-END $$
-
--- -----------------------------------------------------------------------------
---  cancelling an invoice (query 2) puts its goods back in stock. if a cancelled
---  invoice is ever re-opened, the goods are taken out again.
--- -----------------------------------------------------------------------------
-CREATE TRIGGER trg_invoice_after_update
-AFTER UPDATE ON invoice
-FOR EACH ROW
-BEGIN
-    IF NEW.status <> OLD.status THEN
-        UPDATE inventory v
-        JOIN  (SELECT stock_code, SUM(quantity) AS qty
-               FROM   invoice_line
-               WHERE  invoice_no = NEW.invoice_no
-               GROUP BY stock_code) l ON l.stock_code = v.stock_code
-        SET    v.qty_on_hand = v.qty_on_hand + IF(NEW.status = 'Cancelled', l.qty, -l.qty);
+    IF (SELECT status FROM invoices WHERE invoice_no = NEW.invoice_no) = 'Completed' THEN
+        UPDATE inventory
+        SET quantity_on_hand = quantity_on_hand - NEW.quantity
+        WHERE stock_code = NEW.stock_code;
     END IF;
 END $$
 
--- -----------------------------------------------------------------------------
---  a warehouse correction (damaged, lost, found, counted) moves the stock.
---  the CHECK on inventory still stops the stock from going below zero.
--- -----------------------------------------------------------------------------
-CREATE TRIGGER trg_stock_adjustment_after_insert
-AFTER INSERT ON stock_adjustment
+-- =============================================================================
+-- trigger 3: a line deleted from a completed invoice gives its movement back.
+-- =============================================================================
+CREATE TRIGGER trg_invoice_lines_after_delete
+AFTER DELETE ON invoice_lines
 FOR EACH ROW
 BEGIN
-    UPDATE inventory
-    SET    qty_on_hand = qty_on_hand + NEW.quantity_change
-    WHERE  stock_code  = NEW.stock_code;
+    IF (SELECT status FROM invoices WHERE invoice_no = OLD.invoice_no) = 'Completed' THEN
+        UPDATE inventory
+        SET quantity_on_hand = quantity_on_hand + OLD.quantity
+        WHERE stock_code = OLD.stock_code;
+    END IF;
 END $$
 
--- -----------------------------------------------------------------------------
---  required stored procedure: every invoice of one customer (sales, credit
---  notes and cancelled orders) with its date, status and total value. an
---  unknown customer id raises an error instead of an empty list.
--- -----------------------------------------------------------------------------
-CREATE PROCEDURE GetCustomerInvoiceHistory(IN p_customer_id INT UNSIGNED)
+-- =============================================================================
+-- trigger 4: links query 2 to the stock. cancelling a completed invoice puts
+-- its goods back on the shelf (cancelling a return takes them out again);
+-- re-activating a cancelled invoice reverses that.
+-- =============================================================================
+CREATE TRIGGER trg_invoices_after_status_change
+AFTER UPDATE ON invoices
+FOR EACH ROW
 BEGIN
-    DECLARE v_msg VARCHAR(200);
+    IF OLD.status = 'Completed' AND NEW.status = 'Cancelled' THEN
+        UPDATE inventory AS v
+        JOIN (SELECT stock_code, SUM(quantity) AS qty
+              FROM invoice_lines
+              WHERE invoice_no = NEW.invoice_no
+              GROUP BY stock_code) AS l
+          ON l.stock_code = v.stock_code
+        SET v.quantity_on_hand = v.quantity_on_hand + l.qty;
 
-    IF NOT EXISTS (SELECT 1 FROM customer WHERE customer_id = p_customer_id) THEN
+    ELSEIF OLD.status = 'Cancelled' AND NEW.status = 'Completed' THEN
+        UPDATE inventory AS v
+        JOIN (SELECT stock_code, SUM(quantity) AS qty
+              FROM invoice_lines
+              WHERE invoice_no = NEW.invoice_no
+              GROUP BY stock_code) AS l
+          ON l.stock_code = v.stock_code
+        SET v.quantity_on_hand = v.quantity_on_hand - l.qty;
+    END IF;
+END $$
+
+-- =============================================================================
+-- stored procedure: GetCustomerInvoiceHistory
+-- input : a customer id
+-- output: every invoice of that customer (sales, returns, cancelled ones too)
+--         with its date, type, status, number of lines, units and total value,
+--         oldest first. an unknown customer id raises an error instead of
+--         silently returning nothing.
+-- =============================================================================
+CREATE PROCEDURE GetCustomerInvoiceHistory(IN p_customer_id INT UNSIGNED)
+READS SQL DATA
+BEGIN
+    DECLARE v_msg VARCHAR(255);
+
+    IF NOT EXISTS (SELECT 1 FROM customers WHERE customer_id = p_customer_id) THEN
         SET v_msg = CONCAT('customer ', COALESCE(p_customer_id, 'NULL'), ' does not exist');
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
     END IF;
@@ -160,138 +160,114 @@ BEGIN
            i.invoice_date,
            i.invoice_type,
            i.status,
-           co.country_name                                       AS country,
            COUNT(l.line_no)                                      AS line_count,
-           COALESCE(SUM(l.quantity), 0)                          AS total_units,
+           COALESCE(SUM(l.quantity), 0)                          AS total_quantity,
            ROUND(COALESCE(SUM(l.quantity * l.unit_price), 0), 2) AS total_value
-    FROM   invoice i
-    JOIN   country co ON co.country_id = i.country_id
-    LEFT JOIN invoice_line l ON l.invoice_no = i.invoice_no
-    WHERE  i.customer_id = p_customer_id
-    GROUP BY i.invoice_no, i.invoice_date, i.invoice_type, i.status, co.country_name
+    FROM invoices AS i
+    LEFT JOIN invoice_lines AS l ON l.invoice_no = i.invoice_no
+    WHERE i.customer_id = p_customer_id
+    GROUP BY i.invoice_no, i.invoice_date, i.invoice_type, i.status
     ORDER BY i.invoice_date, i.invoice_no;
-END $$
-
--- -----------------------------------------------------------------------------
---  demo helper (dropped at the end): runs one statement that should be refused
---  and reports the message, so every guard can be shown without stopping the
---  script.
--- -----------------------------------------------------------------------------
-CREATE PROCEDURE demo_expect_error(IN p_test VARCHAR(100), IN p_sql TEXT)
-BEGIN
-    DECLARE v_msg TEXT DEFAULT NULL;
-    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-        GET DIAGNOSTICS CONDITION 1 v_msg = MESSAGE_TEXT;
-
-    SET @demo_sql = p_sql;
-    PREPARE demo_stmt FROM @demo_sql;
-    EXECUTE demo_stmt;
-    DEALLOCATE PREPARE demo_stmt;
-
-    SELECT p_test                                            AS test,
-           IF(v_msg IS NULL, 'accepted (unexpected)', 'refused') AS result,
-           v_msg                                             AS message;
 END $$
 
 DELIMITER ;
 
 
 -- =============================================================================
---  demo: one transaction, rolled back at the end
+-- demo / tests
+-- everything that changes data runs inside one transaction that is rolled back
+-- at the end, so this section can be re-run and leaves the database unchanged.
+-- demo_try is a throw-away helper that runs a statement and reports whether it
+-- was accepted or rejected (with the error message) instead of stopping.
 -- =============================================================================
+
+DROP PROCEDURE IF EXISTS demo_try;
+DELIMITER $$
+CREATE PROCEDURE demo_try(IN p_test VARCHAR(100), IN p_sql TEXT)
+BEGIN
+    DECLARE v_error TEXT DEFAULT NULL;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        GET DIAGNOSTICS CONDITION 1 v_error = MESSAGE_TEXT;
+
+    SET @demo_sql = p_sql;
+    PREPARE demo_stmt FROM @demo_sql;
+    EXECUTE demo_stmt;
+    DEALLOCATE PREPARE demo_stmt;
+
+    SELECT p_test AS test,
+           IF(v_error IS NULL, 'accepted', CONCAT('rejected: ', v_error)) AS result;
+END $$
+DELIMITER ;
+
+-- test 1: the procedure for an existing customer (12346: one big sale and its return)
+CALL GetCustomerInvoiceHistory(12346);
+
 START TRANSACTION;
 
--- d1. stock before
-SELECT stock_code, qty_on_hand AS stock_before
-FROM   inventory
-WHERE  stock_code IN ('85123A', '22423')
-ORDER BY stock_code;
+-- stock before the demo
+SELECT 'before' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
--- d2. sale: invoice 581588, 12 x 85123A and 2 x 22423 for customer 12680 (france)
-INSERT INTO invoice (invoice_no, invoice_type, invoice_date, customer_id, country_id)
-SELECT '581588', 'SALE', NOW(), 12680, country_id FROM country WHERE country_name = 'France';
+-- test 2: a new sale of 10 x 85123A and 24 x 84879 -> stock goes down
+INSERT INTO invoices (invoice_no, customer_id, invoice_type) VALUES ('600001', 12346, 'Sale');
+INSERT INTO invoice_lines (invoice_no, line_no, stock_code, quantity, unit_price) VALUES
+    ('600001', 1, '85123A', 10, 3.19),
+    ('600001', 2, '84879',  24, 1.83),
+    ('600001', 3, 'POST',    1, 18.00);   -- postage: no inventory row, stock untouched
 
-INSERT INTO invoice_line (invoice_no, line_no, stock_code, quantity, unit_price)
-SELECT '581588', 1, stock_code, 12, unit_price FROM product WHERE stock_code = '85123A'
-UNION ALL
-SELECT '581588', 2, stock_code, 2, unit_price FROM product WHERE stock_code = '22423';
+SELECT 'after sale' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
-SELECT stock_code, qty_on_hand AS after_sale
-FROM   inventory WHERE stock_code IN ('85123A', '22423') ORDER BY stock_code;
+-- test 3: the customer returns 2 x 85123A on a credit note -> stock goes up
+INSERT INTO invoices (invoice_no, customer_id, invoice_type) VALUES ('C600002', 12346, 'Return');
+INSERT INTO invoice_lines (invoice_no, line_no, stock_code, quantity, unit_price) VALUES
+    ('C600002', 1, '85123A', -2, 3.19);
 
--- d3. return: credit note C581589, the customer sends back 3 x 85123A
-INSERT INTO invoice (invoice_no, invoice_type, invoice_date, customer_id, country_id)
-SELECT 'C581589', 'CREDIT_NOTE', NOW(), 12680, country_id FROM country WHERE country_name = 'France';
+SELECT 'after return' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
-INSERT INTO invoice_line (invoice_no, line_no, stock_code, quantity, unit_price)
-SELECT 'C581589', 1, stock_code, -3, unit_price FROM product WHERE stock_code = '85123A';
+-- test 4: a line correction (24 -> 12 units of 84879) moves only the difference
+UPDATE invoice_lines SET quantity = 12 WHERE invoice_no = '600001' AND line_no = 2;
 
-SELECT stock_code, qty_on_hand AS after_return
-FROM   inventory WHERE stock_code IN ('85123A', '22423') ORDER BY stock_code;
+SELECT 'after correction' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
--- d4. cancellation: a second order, 581590 for 5 x 22423, is cancelled
-INSERT INTO invoice (invoice_no, invoice_type, invoice_date, customer_id, country_id)
-SELECT '581590', 'SALE', NOW(), 12680, country_id FROM country WHERE country_name = 'France';
+-- test 5: the sale is cancelled (query 2 style) -> its goods go back on the shelf
+UPDATE invoices SET status = 'Cancelled', cancelled_at = NOW() WHERE invoice_no = '600001';
 
-INSERT INTO invoice_line (invoice_no, line_no, stock_code, quantity, unit_price)
-SELECT '581590', 1, stock_code, 5, unit_price FROM product WHERE stock_code = '22423';
+SELECT 'after cancel' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
-SELECT stock_code, qty_on_hand AS after_second_order
-FROM   inventory WHERE stock_code IN ('85123A', '22423') ORDER BY stock_code;
+-- test 6: the new documents appear in the customer's history
+CALL GetCustomerInvoiceHistory(12346);
 
-UPDATE invoice
-SET    status = 'Cancelled', cancelled_at = NOW(), cancel_reason = 'demo: customer changed their mind'
-WHERE  invoice_no = '581590';
-
-SELECT stock_code, qty_on_hand AS after_cancellation
-FROM   inventory WHERE stock_code IN ('85123A', '22423') ORDER BY stock_code;
-
--- d5. stock adjustment: 2 x 22423 found damaged in the warehouse
-INSERT INTO stock_adjustment (stock_code, quantity_change, reason)
-VALUES ('22423', -2, 'damaged');
-
-SELECT stock_code, qty_on_hand AS after_adjustment
-FROM   inventory WHERE stock_code IN ('85123A', '22423') ORDER BY stock_code;
-
--- d6. the stored procedure: customer 12680's full invoice history
-CALL GetCustomerInvoiceHistory(12680);
-
--- d7. the guards: each statement below must be refused
-CALL demo_expect_error('sale larger than the stock',
-     'INSERT INTO invoice_line VALUES (''581588'', 3, ''22423'', 999999, 12.75)');
-CALL demo_expect_error('line on a cancelled invoice',
-     'INSERT INTO invoice_line VALUES (''581590'', 2, ''85123A'', 1, 2.95)');
-CALL demo_expect_error('negative quantity on a sale',
-     'INSERT INTO invoice_line VALUES (''581588'', 3, ''85123A'', -1, 2.95)');
-CALL demo_expect_error('positive quantity on a credit note',
-     'INSERT INTO invoice_line VALUES (''C581589'', 2, ''85123A'', 1, 2.95)');
-CALL demo_expect_error('editing a recorded line',
-     'UPDATE invoice_line SET quantity = 1 WHERE invoice_no = ''581587'' AND line_no = 1');
-CALL demo_expect_error('deleting a recorded line',
-     'DELETE FROM invoice_line WHERE invoice_no = ''581587'' AND line_no = 1');
-CALL demo_expect_error('deleting an invoice that has lines',
-     'DELETE FROM invoice WHERE invoice_no = ''581587''');
-CALL demo_expect_error('adjustment taking stock below zero',
-     'INSERT INTO stock_adjustment (stock_code, quantity_change, reason) VALUES (''23843'', -1, ''lost'')');
-CALL demo_expect_error('lower-case stock code',
-     'INSERT INTO product (stock_code, description) VALUES (''99999x'', ''TEST ITEM'')');
-CALL demo_expect_error('negative list price',
-     'INSERT INTO product (stock_code, description, unit_price) VALUES (''99999X'', ''TEST ITEM'', -1.00)');
-CALL demo_expect_error('credit-note number on a sale',
-     'INSERT INTO invoice (invoice_no, invoice_type, country_id) VALUES (''C999999'', ''SALE'', 1)');
-CALL demo_expect_error('cancelling a credit note',
-     'UPDATE invoice SET status = ''Cancelled'', cancelled_at = NOW() WHERE invoice_no = ''C581589''');
-CALL demo_expect_error('malformed e-mail address',
-     'INSERT INTO customer (country_id, email) VALUES (1, ''not-an-email'')');
-CALL demo_expect_error('history of an unknown customer',
-     'CALL GetCustomerInvoiceHistory(99999)');
+-- test 7: guard rails
+INSERT INTO invoices (invoice_no, customer_id, invoice_type) VALUES ('600003', 12346, 'Sale');
+CALL demo_try('oversell 5 x 23843 (0 in stock)',
+    "INSERT INTO invoice_lines VALUES ('600003', 1, '23843', 5, 2.08)");
+CALL demo_try('negative quantity on a sale invoice',
+    "INSERT INTO invoice_lines VALUES ('600003', 2, '85123A', -1, 3.19)");
+CALL demo_try('zero quantity (check constraint)',
+    "INSERT INTO invoice_lines VALUES ('600003', 3, '85123A', 0, 3.19)");
+CALL demo_try('history of an unknown customer',
+    "CALL GetCustomerInvoiceHistory(99999)");
+CALL demo_try('valid sale of 1 x 85123A',
+    "INSERT INTO invoice_lines VALUES ('600003', 4, '85123A', 1, 3.19)");
 
 ROLLBACK;
 
--- d8. after the rollback the stock is back where it started
-SELECT stock_code, qty_on_hand AS stock_after_rollback
-FROM   inventory
-WHERE  stock_code IN ('85123A', '22423')
-ORDER BY stock_code;
+-- stock is back to its original values after the rollback
+SELECT 'after rollback' AS moment, stock_code, quantity_on_hand
+FROM inventory WHERE stock_code IN ('85123A', '84879') ORDER BY stock_code;
 
-DROP PROCEDURE IF EXISTS demo_expect_error;
+DROP PROCEDURE IF EXISTS demo_try;
+
+-- list what this script installed
+SELECT trigger_name, action_timing, event_manipulation, event_object_table
+FROM information_schema.triggers
+WHERE trigger_schema = 'kodes_retail'
+ORDER BY event_object_table, trigger_name;
+
+SELECT routine_name, routine_type
+FROM information_schema.routines
+WHERE routine_schema = 'kodes_retail';

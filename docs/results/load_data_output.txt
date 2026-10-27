@@ -1,0 +1,25 @@
++----------------------------+---------+----------+----------+
+| Table                      | Op      | Msg_type | Msg_text |
++----------------------------+---------+----------+----------+
+| kodes_retail.countries     | analyze | status   | OK       |
+| kodes_retail.customers     | analyze | status   | OK       |
+| kodes_retail.products      | analyze | status   | OK       |
+| kodes_retail.inventory     | analyze | status   | OK       |
+| kodes_retail.invoices      | analyze | status   | OK       |
+| kodes_retail.invoice_lines | analyze | status   | OK       |
++----------------------------+---------+----------+----------+
++---------------+-----------+
+| table_name    | row_count |
++---------------+-----------+
+| countries     |        43 |
+| customers     |      5938 |
+| products      |      4753 |
+| inventory     |      4737 |
+| invoices      |     48235 |
+| invoice_lines |   1026947 |
++---------------+-----------+
++----------------------+
+| imported_net_revenue |
++----------------------+
+|         19224458.348 |
++----------------------+

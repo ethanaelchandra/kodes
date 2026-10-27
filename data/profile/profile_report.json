@@ -1,0 +1,247 @@
+{
+  "rows": 1067371,
+  "columns": [
+    "Invoice",
+    "StockCode",
+    "Description",
+    "Quantity",
+    "InvoiceDate",
+    "Price",
+    "Customer ID",
+    "Country"
+  ],
+  "date_range": [
+    "2009-12-01 07:45:00",
+    "2011-12-09 12:50:00"
+  ],
+  "distinct": {
+    "Invoice": 53628,
+    "StockCode": 5305,
+    "Description": 5699,
+    "Quantity": 1057,
+    "InvoiceDate": 47635,
+    "Price": 2807,
+    "Customer ID": 5943,
+    "Country": 43
+  },
+  "blank_values": {
+    "Invoice": 0,
+    "StockCode": 0,
+    "Description": 4382,
+    "Quantity": 0,
+    "InvoiceDate": 0,
+    "Price": 0,
+    "Customer ID": 243007,
+    "Country": 0
+  },
+  "exact_duplicate_rows": 34335,
+  "invoice_prefix_rows": {
+    "(none)": 1047871,
+    "C": 19494,
+    "A": 6
+  },
+  "invoice_prefix_invoices": {
+    "(none)": 45330,
+    "A": 6,
+    "C": 8292
+  },
+  "cancellation_rows_with_positive_qty": 1,
+  "non_cancellation_rows_with_negative_qty": 3457,
+  "non_cancellation_negative_qty_all_price0_no_customer": true,
+  "price_negative_rows": 5,
+  "price_zero_rows": 6202,
+  "price_zero_rows_with_customer": 71,
+  "price_max_decimals": 3,
+  "blank_description_rows": 4382,
+  "blank_description_all_price0_no_customer": true,
+  "missing_customer_rows": 243007,
+  "missing_customer_invoices": 8752,
+  "missing_customer_revenue_share_pct": 13.68,
+  "stockcode_untrimmed_rows": 1,
+  "description_untrimmed_rows": 213035,
+  "description_double_space_rows": 52708,
+  "stockcodes_with_case_variants": 174,
+  "stockcode_case_examples": [
+    "15056BL",
+    "15056N",
+    "15056P",
+    "15056bl",
+    "15056n",
+    "15056p"
+  ],
+  "functional_dependencies": {
+    "Invoice -> InvoiceDate": {
+      "violations": 83,
+      "of": 53628,
+      "max_spread_minutes": 9.0
+    },
+    "Invoice -> Customer ID": {
+      "violations": 0,
+      "of": 53628
+    },
+    "Invoice -> Country": {
+      "violations": 0,
+      "of": 53628
+    },
+    "Customer ID -> Country": {
+      "violations": 13,
+      "of": 5942
+    },
+    "StockCode -> Description (raw)": {
+      "violations": 1232,
+      "of": 4950
+    },
+    "StockCode -> Description (trimmed, upper-cased)": {
+      "violations": 1188,
+      "of": 4778
+    },
+    "StockCode -> Price": {
+      "violations": 4264,
+      "of": 4744
+    },
+    "(Invoice, StockCode) unique": {
+      "groups_with_repeats": 11165,
+      "repeats_with_different_prices": 932
+    }
+  },
+  "special_stockcodes": [
+    {
+      "sc": "POST",
+      "rows": 2086,
+      "description": "POSTAGE"
+    },
+    {
+      "sc": "DOT",
+      "rows": 1425,
+      "description": "DOTCOM POSTAGE"
+    },
+    {
+      "sc": "M",
+      "rows": 1392,
+      "description": "MANUAL"
+    },
+    {
+      "sc": "C2",
+      "rows": 277,
+      "description": "CARRIAGE"
+    },
+    {
+      "sc": "D",
+      "rows": 173,
+      "description": "DISCOUNT"
+    },
+    {
+      "sc": "S",
+      "rows": 101,
+      "description": "SAMPLES"
+    },
+    {
+      "sc": "BANK CHARGES",
+      "rows": 100,
+      "description": "BANK CHARGES"
+    },
+    {
+      "sc": "ADJUST",
+      "rows": 67,
+      "description": "ADJUSTMENT BY JOHN ON 26/01/2010 16"
+    },
+    {
+      "sc": "AMAZONFEE",
+      "rows": 36,
+      "description": "AMAZON FEE"
+    },
+    {
+      "sc": "DCGS0058",
+      "rows": 31,
+      "description": "MISO PRETTY GUM"
+    },
+    {
+      "sc": "GIFT_0001_20",
+      "rows": 29,
+      "description": "DOTCOMGIFTSHOP GIFT VOUCHER \u00a320.00"
+    },
+    {
+      "sc": "GIFT_0001_30",
+      "rows": 29,
+      "description": "DOTCOMGIFTSHOP GIFT VOUCHER \u00a330.00"
+    },
+    {
+      "sc": "DCGSSGIRL",
+      "rows": 25,
+      "description": "GIRLS PARTY BAG"
+    },
+    {
+      "sc": "DCGSSBOY",
+      "rows": 23,
+      "description": "BOYS PARTY BAG"
+    },
+    {
+      "sc": "PADS",
+      "rows": 19,
+      "description": "PADS TO MATCH ALL CUSHIONS"
+    },
+    {
+      "sc": "GIFT_0001_10",
+      "rows": 16,
+      "description": "DOTCOMGIFTSHOP GIFT VOUCHER \u00a310.00"
+    },
+    {
+      "sc": "CRUK",
+      "rows": 16,
+      "description": "CRUK COMMISSION"
+    },
+    {
+      "sc": "TEST001",
+      "rows": 15,
+      "description": "THIS IS A TEST PRODUCT."
+    },
+    {
+      "sc": "DCGS0076",
+      "rows": 14,
+      "description": "SUNJAR LED NIGHT NIGHT LIGHT"
+    },
+    {
+      "sc": "DCGS0003",
+      "rows": 14,
+      "description": "BOXED GLASS ASHTRAY"
+    },
+    {
+      "sc": "GIFT_0001_50",
+      "rows": 8,
+      "description": "DOTCOMGIFTSHOP GIFT VOUCHER \u00a350.00"
+    },
+    {
+      "sc": "GIFT_0001_40",
+      "rows": 7,
+      "description": "DOTCOMGIFTSHOP GIFT VOUCHER \u00a340.00"
+    },
+    {
+      "sc": "DCGS0069",
+      "rows": 6,
+      "description": "OOH LA LA DOGS COLLAR"
+    },
+    {
+      "sc": "B",
+      "rows": 6,
+      "description": "ADJUST BAD DEBT"
+    },
+    {
+      "sc": "DCGS0004",
+      "rows": 5,
+      "description": "HAYNES CAMPER SHOULDER BAG"
+    }
+  ],
+  "quantity_min_max": [
+    -80995,
+    80995
+  ],
+  "country_labels_to_review": [
+    "Channel Islands",
+    "EIRE",
+    "European Community",
+    "RSA",
+    "USA",
+    "Unspecified",
+    "West Indies"
+  ]
+}
