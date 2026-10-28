@@ -1,3 +1,5 @@
-*.csv
+# the uncompressed raw csv is 95 mb; the repo keeps the gzipped copy instead
+data/raw/online_retail_data.csv
 __pycache__/
+*.pyc
 .DS_Store

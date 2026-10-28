@@ -1,0 +1,395 @@
+{
+  "summary": {
+    "raw_rows": 1067371,
+    "raw_invoices": 53628,
+    "raw_revenue": "19287250.568",
+    "kept_rows": 1026947,
+    "rejected_rows": 40424,
+    "kept_plus_rejected_equals_raw": true,
+    "kept_invoices": 48235,
+    "kept_revenue": "19224458.348",
+    "invoice_lines_revenue": "19224458.348",
+    "revenue_reconciles": true,
+    "sale_invoices": 40028,
+    "return_invoices": 8207,
+    "registered_customers": 5923,
+    "guest_accounts": 15,
+    "stock_items": 4737,
+    "non_stock_items": 16,
+    "max_lines_per_invoice": 1114
+  },
+  "removal_rules": [
+    {
+      "step": "r1",
+      "rule": "exact duplicate of an earlier row",
+      "rows_removed": 34335,
+      "rows_remaining": 1033036,
+      "examples": [
+        {
+          "Invoice": "489517",
+          "StockCode": "21912",
+          "Description": "VINTAGE SNAKES & LADDERS",
+          "Quantity": "1",
+          "InvoiceDate": "2009-12-01 11:34:00",
+          "Price": "3.75",
+          "Customer ID": "16329.0",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "489517",
+          "StockCode": "22130",
+          "Description": "PARTY CONE CHRISTMAS DECORATION ",
+          "Quantity": "6",
+          "InvoiceDate": "2009-12-01 11:34:00",
+          "Price": "0.85",
+          "Customer ID": "16329.0",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "489517",
+          "StockCode": "22319",
+          "Description": "HAIRCLIPS FORTIES FABRIC ASSORTED",
+          "Quantity": "12",
+          "InvoiceDate": "2009-12-01 11:34:00",
+          "Price": "0.65",
+          "Customer ID": "16329.0",
+          "Country": "United Kingdom"
+        }
+      ]
+    },
+    {
+      "step": "r2",
+      "rule": "internal bookkeeping or test entry, not a customer transaction",
+      "rows_removed": 145,
+      "rows_remaining": 1032891,
+      "examples": [
+        {
+          "Invoice": "491725",
+          "StockCode": "TEST001",
+          "Description": "This is a test product.",
+          "Quantity": "10",
+          "InvoiceDate": "2009-12-14 08:34:00",
+          "Price": "4.5",
+          "Customer ID": "12346.0",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "491742",
+          "StockCode": "TEST001",
+          "Description": "This is a test product.",
+          "Quantity": "5",
+          "InvoiceDate": "2009-12-14 11:00:00",
+          "Price": "4.5",
+          "Customer ID": "12346.0",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "491744",
+          "StockCode": "TEST001",
+          "Description": "This is a test product.",
+          "Quantity": "5",
+          "InvoiceDate": "2009-12-14 11:02:00",
+          "Price": "4.5",
+          "Customer ID": "12346.0",
+          "Country": "United Kingdom"
+        }
+      ]
+    },
+    {
+      "step": "r3",
+      "rule": "zero-price line with no customer (warehouse stock adjustment, not a sale)",
+      "rows_removed": 5943,
+      "rows_remaining": 1026948,
+      "examples": [
+        {
+          "Invoice": "489464",
+          "StockCode": "21733",
+          "Description": "85123a mixed",
+          "Quantity": "-96",
+          "InvoiceDate": "2009-12-01 10:52:00",
+          "Price": "0.0",
+          "Customer ID": "",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "489463",
+          "StockCode": "71477",
+          "Description": "short",
+          "Quantity": "-240",
+          "InvoiceDate": "2009-12-01 10:52:00",
+          "Price": "0.0",
+          "Customer ID": "",
+          "Country": "United Kingdom"
+        },
+        {
+          "Invoice": "489467",
+          "StockCode": "85123A",
+          "Description": "21733 mixed",
+          "Quantity": "-192",
+          "InvoiceDate": "2009-12-01 10:53:00",
+          "Price": "0.0",
+          "Customer ID": "",
+          "Country": "United Kingdom"
+        }
+      ]
+    },
+    {
+      "step": "r4",
+      "rule": "quantity sign does not match the document type",
+      "rows_removed": 1,
+      "rows_remaining": 1026947,
+      "examples": [
+        {
+          "Invoice": "C496350",
+          "StockCode": "M",
+          "Description": "Manual",
+          "Quantity": "1",
+          "InvoiceDate": "2010-02-01 08:24:00",
+          "Price": "373.57",
+          "Customer ID": "",
+          "Country": "United Kingdom"
+        }
+      ]
+    }
+  ],
+  "corrections": [
+    {
+      "fix": "c1",
+      "rule": "stock codes trimmed and upper-cased (e.g. 15056bl -> 15056BL)",
+      "values_changed": 3346
+    },
+    {
+      "fix": "c2",
+      "rule": "descriptions trimmed and repeated spaces collapsed",
+      "values_changed": 240346
+    },
+    {
+      "fix": "c3",
+      "rule": "invoice date set to the earliest timestamp of the invoice",
+      "invoices_changed": 83
+    },
+    {
+      "fix": "c4",
+      "rule": "country labels standardised: EIRE -> Ireland, RSA -> South Africa, USA -> United States",
+      "rows_changed": 18354
+    },
+    {
+      "fix": "c5",
+      "rule": "customer country = country with the most invoices (tie: most recent)",
+      "customers_changed": 12,
+      "details": [
+        {
+          "Customer ID": "12370.0",
+          "Country": "Austria",
+          "invoices": 4,
+          "last": "2010-12-17 09:38:00",
+          "chosen": "Austria"
+        },
+        {
+          "Customer ID": "12370.0",
+          "Country": "Cyprus",
+          "invoices": 3,
+          "last": "2011-10-19 14:51:00",
+          "chosen": "Austria"
+        },
+        {
+          "Customer ID": "12394.0",
+          "Country": "Denmark",
+          "invoices": 1,
+          "last": "2011-10-07 08:08:00",
+          "chosen": "Denmark"
+        },
+        {
+          "Customer ID": "12394.0",
+          "Country": "Belgium",
+          "invoices": 1,
+          "last": "2011-05-06 14:01:00",
+          "chosen": "Denmark"
+        },
+        {
+          "Customer ID": "12413.0",
+          "Country": "France",
+          "invoices": 5,
+          "last": "2011-10-04 09:00:00",
+          "chosen": "France"
+        },
+        {
+          "Customer ID": "12413.0",
+          "Country": "Spain",
+          "invoices": 1,
+          "last": "2010-11-02 13:26:00",
+          "chosen": "France"
+        },
+        {
+          "Customer ID": "12417.0",
+          "Country": "Belgium",
+          "invoices": 25,
+          "last": "2011-12-06 14:52:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12417.0",
+          "Country": "Spain",
+          "invoices": 2,
+          "last": "2011-04-28 13:09:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12422.0",
+          "Country": "Switzerland",
+          "invoices": 11,
+          "last": "2011-06-24 13:20:00",
+          "chosen": "Switzerland"
+        },
+        {
+          "Customer ID": "12422.0",
+          "Country": "Australia",
+          "invoices": 10,
+          "last": "2011-09-05 09:48:00",
+          "chosen": "Switzerland"
+        },
+        {
+          "Customer ID": "12423.0",
+          "Country": "Belgium",
+          "invoices": 10,
+          "last": "2011-12-09 10:10:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12423.0",
+          "Country": "Denmark",
+          "invoices": 1,
+          "last": "2010-08-31 09:31:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12429.0",
+          "Country": "Denmark",
+          "invoices": 8,
+          "last": "2011-11-30 17:22:00",
+          "chosen": "Denmark"
+        },
+        {
+          "Customer ID": "12429.0",
+          "Country": "Austria",
+          "invoices": 1,
+          "last": "2011-04-26 11:44:00",
+          "chosen": "Denmark"
+        },
+        {
+          "Customer ID": "12431.0",
+          "Country": "Australia",
+          "invoices": 27,
+          "last": "2011-11-04 11:55:00",
+          "chosen": "Australia"
+        },
+        {
+          "Customer ID": "12431.0",
+          "Country": "Belgium",
+          "invoices": 6,
+          "last": "2011-10-10 14:49:00",
+          "chosen": "Australia"
+        },
+        {
+          "Customer ID": "12449.0",
+          "Country": "Belgium",
+          "invoices": 4,
+          "last": "2011-11-17 13:46:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12449.0",
+          "Country": "Denmark",
+          "invoices": 2,
+          "last": "2010-10-25 12:21:00",
+          "chosen": "Belgium"
+        },
+        {
+          "Customer ID": "12455.0",
+          "Country": "Cyprus",
+          "invoices": 6,
+          "last": "2011-02-17 17:05:00",
+          "chosen": "Cyprus"
+        },
+        {
+          "Customer ID": "12455.0",
+          "Country": "Spain",
+          "invoices": 4,
+          "last": "2011-09-27 15:31:00",
+          "chosen": "Cyprus"
+        },
+        {
+          "Customer ID": "12457.0",
+          "Country": "Switzerland",
+          "invoices": 11,
+          "last": "2011-10-12 13:46:00",
+          "chosen": "Switzerland"
+        },
+        {
+          "Customer ID": "12457.0",
+          "Country": "Cyprus",
+          "invoices": 3,
+          "last": "2011-10-04 13:15:00",
+          "chosen": "Switzerland"
+        },
+        {
+          "Customer ID": "12652.0",
+          "Country": "France",
+          "invoices": 2,
+          "last": "2011-01-21 17:01:00",
+          "chosen": "France"
+        },
+        {
+          "Customer ID": "12652.0",
+          "Country": "Germany",
+          "invoices": 1,
+          "last": "2010-10-01 15:16:00",
+          "chosen": "France"
+        }
+      ]
+    },
+    {
+      "fix": "c6",
+      "rule": "one canonical description per stock code (most frequent, tie: most recent)",
+      "products_changed": 596,
+      "rows_changed": 59045
+    },
+    {
+      "fix": "c7",
+      "rule": "rows without Customer ID assigned to a guest account per country (ids 1..15)",
+      "rows_changed": 229158,
+      "guest_accounts": 15
+    }
+  ],
+  "table_rows": {
+    "countries": 43,
+    "customers": 5938,
+    "products": 4753,
+    "inventory": 4737,
+    "invoices": 48235,
+    "invoice_lines": 1026947
+  },
+  "rejected_by_reason": {
+    "exact duplicate of an earlier row": 34335,
+    "zero-price line with no customer (warehouse stock adjustment, not a sale)": 5943,
+    "internal bookkeeping or test entry, not a customer transaction": 145,
+    "quantity sign does not match the document type": 1
+  },
+  "guest_accounts": {
+    "1": "Bahrain",
+    "2": "Bermuda",
+    "3": "France",
+    "4": "Hong Kong",
+    "5": "Ireland",
+    "6": "Israel",
+    "7": "Lebanon",
+    "8": "Nigeria",
+    "9": "Portugal",
+    "10": "South Africa",
+    "11": "Sweden",
+    "12": "Switzerland",
+    "13": "United Arab Emirates",
+    "14": "United Kingdom",
+    "15": "Unspecified"
+  }
+}
