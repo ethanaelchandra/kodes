@@ -18,7 +18,7 @@ CHARACTER SET utf8mb4
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 LINES
-(country_id, country_name);
+(country_id, country_name, is_country);
 
 LOAD DATA LOCAL INFILE 'data/clean/customers.csv'
 INTO TABLE customers

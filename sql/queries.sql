@@ -1,7 +1,9 @@
 -- =============================================================================
 -- kodes retail | phase 3: data transactions & queries (dml)
 -- file    : queries.sql
--- needs   : schema.sql + load_data.sql
+-- needs   : schema.sql + load_data.sql. running advanced.sql first is better:
+--           then the cancellation in query 2 also puts its goods back in stock
+--           (run_all.sh runs advanced.sql first for that reason).
 -- run     : mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
 -- notes   : - revenue = quantity * unit_price of the line (price at time of sale).
 --           - only 'Completed' invoices count; 'Cancelled' ones stay in the
@@ -11,6 +13,7 @@
 --           - per-invoice totals are aggregated first (derived table on the
 --             invoice_lines primary key), which keeps each report at about
 --             1 second on the full 1,026,947-line dataset.
+--           - query 1 and query 2 change data on purpose.
 -- =============================================================================
 
 USE kodes_retail;
@@ -20,10 +23,10 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- =============================================================================
 -- query 1: price adjustment campaign (UPDATE)
--- raise the list price by 8% for every product that costs less than 5.00.
--- only catalogue items (is_stock_item = TRUE) are repriced: manual entries and
--- placeholder codes have no real list price. historical invoice lines keep the
--- price that was actually paid, because they store their own unit_price.
+-- raise the list price (products.unit_price) by 8% for every product that
+-- currently costs less than 5.00, rounded to the cent. historical invoice lines
+-- keep the price that was actually paid, because they store their own
+-- unit_price, so the campaign never rewrites past sales.
 -- =============================================================================
 
 -- 1a. preview: how many products will be repriced
@@ -31,8 +34,7 @@ SELECT COUNT(*)        AS products_below_5,
        MIN(unit_price) AS lowest_price,
        MAX(unit_price) AS highest_price
 FROM products
-WHERE is_stock_item = TRUE
-  AND unit_price < 5.00;
+WHERE unit_price < 5.00;
 
 START TRANSACTION;
 
@@ -40,16 +42,15 @@ START TRANSACTION;
 CREATE TEMPORARY TABLE q1_old_prices AS
 SELECT stock_code, unit_price AS old_price
 FROM products
-WHERE is_stock_item = TRUE
-  AND unit_price < 5.00;
+WHERE unit_price < 5.00;
 
 -- 1c. the price change itself
 UPDATE products
 SET unit_price = ROUND(unit_price * 1.08, 2)
-WHERE is_stock_item = TRUE
-  AND unit_price < 5.00;
+WHERE unit_price < 5.00;
 
--- rows actually changed (items priced at a few cents round back to the same value)
+-- rows actually changed: a price of 0.00, or of a few cents, rounds back to the
+-- same value, because 8% of it is less than half a cent
 SELECT ROW_COUNT() AS products_repriced;
 
 COMMIT;
@@ -74,10 +75,13 @@ DROP TEMPORARY TABLE q1_old_prices;
 -- status becomes 'Cancelled' and cancelled_at records when. the header and all
 -- its lines stay in the database as the audit record. only a completed sale can
 -- be cancelled (a return or an already cancelled invoice is left untouched).
--- once advanced.sql is installed, a trigger also puts the goods back in stock.
+-- with advanced.sql installed, trigger 4 also puts the goods back in stock.
 -- =============================================================================
 
-SET @invoice_to_cancel = '581587';
+-- the _utf8mb4 introducer and COLLATE give the variable the tables' collation,
+-- so this also works when the query is run on its own in workbench or
+-- phpmyadmin (without them mysql 8 reports "illegal mix of collations")
+SET @invoice_to_cancel = _utf8mb4'581587' COLLATE utf8mb4_unicode_ci;
 
 -- 2a. the invoice before the cancellation
 SELECT i.invoice_no, i.customer_id, i.invoice_date, i.invoice_type, i.status, i.cancelled_at,
@@ -117,7 +121,9 @@ GROUP BY i.invoice_no, i.customer_id, i.invoice_date, i.invoice_type, i.status, 
 -- total sales revenue and number of completed invoices per country, highest
 -- revenue first. completed_invoices counts completed sale invoices; returns
 -- (credit notes) reduce revenue but are not counted as invoices.
--- country comes from the customer (guest accounts carry their own country).
+-- country comes from the customer (guest accounts carry their own country), so
+-- the 12 customers who had invoices under two countries count under their main
+-- one (cleaning correction c5).
 -- =============================================================================
 
 SELECT co.country_name                                                AS country,
@@ -143,9 +149,10 @@ ORDER BY total_revenue DESC;
 -- query 4: vip high-spender identification (nested subquery)
 -- customers whose total spend is greater than the average total spend of all
 -- customers. total spend = net value of their completed invoices (sales minus
--- returns). guest accounts are not real customers, so they are left out of both
--- the list and the average. customers with no purchases count as 0 in the
--- average (left join + coalesce).
+-- returns). the 15 guest accounts are not real customers (each one pools the
+-- anonymous orders of a whole country), so they are left out of both the list
+-- and the average. customers with no purchases count as 0 in the average
+-- (left join + coalesce).
 -- =============================================================================
 
 -- 4a. the threshold, shown for reference
@@ -201,16 +208,20 @@ WHERE c.is_guest = FALSE
                 GROUP BY c2.customer_id
              ) AS per_customer
       )
-ORDER BY s.total_spend DESC;
+ORDER BY s.total_spend DESC, c.customer_id;
 
 
 -- =============================================================================
 -- query 5: product performance & cross-selling (subquery / complex filtering)
 -- products never bought by any customer from 'Germany', but bought by customers
 -- from at least two other countries. "bought" = a line on a completed sale
--- invoice (returns and cancelled orders are not purchases). only catalogue items
--- are considered (postage, fees and vouchers are not products). these are the
--- items to push into the german market next.
+-- invoice (returns and cancelled orders are not purchases).
+-- - only real countries are counted: labels that do not name one country
+--   ('Unspecified', 'European Community', 'Channel Islands', 'West Indies',
+--   countries.is_country = FALSE) cannot count as a second country.
+-- - only merchandise is considered (is_stock_item = TRUE): postage, carriage,
+--   bank charges and vouchers are billable codes, not products to sell.
+-- the result is the list of proven products to push into the german market.
 -- =============================================================================
 
 SELECT p.stock_code,
@@ -229,6 +240,7 @@ FROM (
 JOIN products  AS p  ON p.stock_code  = pc.stock_code
 JOIN countries AS co ON co.country_id = pc.country_id
 WHERE p.is_stock_item = TRUE
+  AND co.is_country   = TRUE
   AND p.stock_code NOT IN (
         -- every product bought at least once by a customer from germany
         -- (stock_code is NOT NULL, so NOT IN is safe here)
@@ -242,5 +254,5 @@ WHERE p.is_stock_item = TRUE
           AND i2.status        = 'Completed'
       )
 GROUP BY p.stock_code, p.description
-HAVING COUNT(*) >= 2          -- at least two (non-german) countries
+HAVING COUNT(*) >= 2          -- at least two other (real) countries
 ORDER BY buyer_countries DESC, p.stock_code;

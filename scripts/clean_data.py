@@ -29,6 +29,8 @@ INTERNAL_CODES = {"B", "TEST001", "TEST002", "AMAZONFEE", "CRUK", "ADJUST", "ADJ
 NON_STOCK_CODES = {"POST", "DOT", "C2", "M", "D", "S", "BANK CHARGES", "PADS"}
 NON_STOCK_PREFIXES = ("GIFT_0001_",)  # gift vouchers (22016 is also a voucher, caught by its description)
 COUNTRY_RENAMES = {"EIRE": "Ireland", "RSA": "South Africa", "USA": "United States"}
+# labels kept as they are (the real country is unknown) but flagged as not being one country
+NON_COUNTRY_LABELS = {"Unspecified", "European Community", "Channel Islands", "West Indies"}
 # guest accounts get ids 1..n: real customer ids start at 12346 and new customers continue
 # from the auto_increment counter (18288), so the three ranges never collide
 GUEST_ID_START = 1
@@ -146,6 +148,7 @@ df["price"] = df["Price"].astype(float)
 # countries: every country label seen in the source (after renames)
 all_countries = sorted(set(raw["Country"].str.strip().replace(COUNTRY_RENAMES)))
 countries = pd.DataFrame({"country_id": range(1, len(all_countries) + 1), "country_name": all_countries})
+countries["is_country"] = (~countries["country_name"].isin(NON_COUNTRY_LABELS)).astype(int)
 cid = dict(zip(countries.country_name, countries.country_id))
 
 # customers

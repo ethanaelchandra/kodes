@@ -2,7 +2,8 @@
 -- kodes retail | phase 2: database implementation (ddl)
 -- file    : schema.sql
 -- target  : mysql 8.0.16+ (check constraints are enforced from 8.0.16)
---           also runs on mariadb 10.4+ (xampp): utf8mb4_unicode_ci exists in both
+--           also tested on mariadb 10.11; every feature used exists from
+--           mariadb 10.2, so xampp's mariadb 10.4 should run it as well
 -- run     : mysql -u root -p < sql/schema.sql
 -- note    : this script drops and recreates the kodes_retail database
 -- =============================================================================
@@ -16,10 +17,14 @@ USE kodes_retail;
 -- -----------------------------------------------------------------------------
 -- countries: lookup table, one row per country label.
 -- replaces the free-text Country column so a country is stored (and renamed) once.
+-- is_country = FALSE for the 4 source labels that do not name one country
+-- ('Unspecified', 'European Community', 'Channel Islands', 'West Indies'):
+-- they stay for revenue reports, but are not counted as countries (query 5).
 -- -----------------------------------------------------------------------------
 CREATE TABLE countries (
     country_id    SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     country_name  VARCHAR(60)       NOT NULL,
+    is_country    BOOLEAN           NOT NULL DEFAULT TRUE,
 
     CONSTRAINT pk_countries      PRIMARY KEY (country_id),
     CONSTRAINT uq_countries_name UNIQUE (country_name),
@@ -97,6 +102,9 @@ CREATE TABLE inventory (
 --   C-prefixed credit notes (negative quantities).
 -- status: 'Completed' or 'Cancelled'. cancelling never deletes the invoice or
 --   its lines (audit trail); cancelled_at records when it happened.
+--   status is the order's state and cancelled_at the audit time of one event;
+--   today they move together (a check keeps them consistent), but the status
+--   list is meant to grow (e.g. 'Pending', 'Shipped') without new date columns.
 -- type/status use a binary collation so only the exact spellings are accepted.
 -- -----------------------------------------------------------------------------
 CREATE TABLE invoices (
@@ -139,7 +147,8 @@ CREATE TABLE invoice_lines (
     CONSTRAINT fk_lines_invoice FOREIGN KEY (invoice_no)
         REFERENCES invoices (invoice_no)
         ON UPDATE CASCADE      -- lines follow a corrected invoice number
-        ON DELETE CASCADE,     -- lines cannot exist without their invoice
+        ON DELETE RESTRICT,    -- an invoice with lines cannot be deleted: cancel it
+                               -- instead, so the audit trail and the stock stay right
     CONSTRAINT fk_lines_product FOREIGN KEY (stock_code)
         REFERENCES products (stock_code)
         ON UPDATE CASCADE      -- lines follow a renamed stock code

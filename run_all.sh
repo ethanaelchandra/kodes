@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# rebuild the whole kodes project from the raw csv, in phase order:
-#   profile -> clean -> schema (phase 2) -> import -> queries (phase 3)
-#   -> triggers + procedure (phase 4) -> backup
+# rebuild the whole kodes project from the raw csv:
+#   profile -> clean -> schema (phase 2) -> import -> triggers + procedure
+#   (phase 4) -> backup -> queries (phase 3)
+#
+# phase 4 is installed before the phase 3 queries run, so the cancellation in
+# query 2 also puts its goods back in stock. the backup is taken just before the
+# queries, so a restored copy is the clean database and queries.sql can be run
+# on it with the same results as docs/results/queries_output.txt.
 #
 # run from anywhere; needs python3 with pandas, and the mysql + mysqldump clients.
 #   ./run_all.sh                                    # mysql user root, no password
@@ -30,19 +35,23 @@ echo "4/7 importing the full dataset (load_data.sql)"
 $MYSQL -e "SET GLOBAL local_infile = 1;"
 $MYSQL --local-infile=1 -t kodes_retail < sql/load_data.sql > docs/results/load_data_output.txt
 
-echo "5/7 running the phase 3 queries (queries.sql)"
-$MYSQL -t kodes_retail < sql/queries.sql > docs/results/queries_output.txt
-
-echo "6/7 installing the triggers and the stored procedure, with tests (advanced.sql)"
+echo "5/7 installing the triggers and the stored procedure, with tests (advanced.sql)"
 $MYSQL -t kodes_retail < sql/advanced.sql > docs/results/advanced_output.txt
 
-echo "7/7 writing the backup (backup/kodes_retail_backup.sql.gz)"
-# definer clauses are removed so the backup restores under any mysql account, and the
-# mysql-8-only 'default encryption' clause is removed so it also restores on mariadb (xampp)
+echo "6/7 writing the backup (backup/kodes_retail_backup.sql.gz)"
+# mysqldump output is made portable:
+# - definer clauses are removed, so it restores under any mysql account
+# - the mysql-8-only 'default encryption' clause is removed, and
+# - mysql 8 writes the phone check as regexp_like(), which mariadb (xampp) lacks,
+#   so it is turned back into the REGEXP operator that both understand
 mysqldump $ARGS --default-character-set=utf8mb4 --single-transaction \
           --routines --triggers --databases kodes_retail \
   | sed -E -e 's/DEFINER=`[^`]+`@`[^`]+`//g' \
            -e "s#/\\*!80016 DEFAULT ENCRYPTION='N' \\*/##" \
+           -e "s/regexp_like\\(\`phone\`,(_utf8mb4'[^']*')\\)/(\`phone\` regexp \\1)/" \
   | gzip -9 > backup/kodes_retail_backup.sql.gz
+
+echo "7/7 running the phase 3 queries (queries.sql)"
+$MYSQL -t kodes_retail < sql/queries.sql > docs/results/queries_output.txt
 
 echo "done. outputs are in docs/results/ and backup/"

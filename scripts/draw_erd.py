@@ -16,6 +16,7 @@ TABLES = {
     "countries": [
         ("smallint", "country_id", "PK", "auto_increment"),
         ("varchar(60)", "country_name", "UK", "not null"),
+        ("boolean", "is_country", "", "default true"),
     ],
     "customers": [
         ("int", "customer_id", "PK", "auto_increment"),

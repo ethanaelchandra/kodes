@@ -11,8 +11,9 @@
 --             move it from here on.
 --           - postage, fees and vouchers have no inventory row, so their lines
 --             simply do not touch stock.
---           - invoices are cancelled, never deleted: mysql does not fire
---             triggers for rows removed by ON DELETE CASCADE.
+--           - an invoice that still has lines cannot be deleted (ON DELETE
+--             RESTRICT on invoice_lines): orders are cancelled instead, and
+--             trigger 4 returns their goods to stock.
 -- =============================================================================
 
 USE kodes_retail;
@@ -75,13 +76,24 @@ END $$
 
 -- =============================================================================
 -- trigger 2: a corrected line (new quantity or product) moves the difference.
--- the old movement is undone and the new one applied; the CHECK constraint on
+-- the corrected quantity must still match the invoice type; then the old
+-- movement is undone and the new one applied. the CHECK constraint on
 -- inventory still blocks any result below zero.
 -- =============================================================================
 CREATE TRIGGER trg_invoice_lines_after_update
 AFTER UPDATE ON invoice_lines
 FOR EACH ROW
 BEGIN
+    DECLARE v_type VARCHAR(10);
+    DECLARE v_msg  VARCHAR(255);
+
+    SET v_type = (SELECT invoice_type FROM invoices WHERE invoice_no = NEW.invoice_no);
+    IF (v_type = 'Sale' AND NEW.quantity < 0) OR (v_type = 'Return' AND NEW.quantity > 0) THEN
+        SET v_msg = CONCAT('quantity ', NEW.quantity, ' does not match ',
+                           LOWER(v_type), ' invoice ', NEW.invoice_no);
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+    END IF;
+
     IF (SELECT status FROM invoices WHERE invoice_no = OLD.invoice_no) = 'Completed' THEN
         UPDATE inventory
         SET quantity_on_hand = quantity_on_hand + OLD.quantity
@@ -249,10 +261,14 @@ CALL demo_try('negative quantity on a sale invoice',
     "INSERT INTO invoice_lines VALUES ('600003', 2, '85123A', -1, 3.19)");
 CALL demo_try('zero quantity (check constraint)',
     "INSERT INTO invoice_lines VALUES ('600003', 3, '85123A', 0, 3.19)");
-CALL demo_try('history of an unknown customer',
-    "CALL GetCustomerInvoiceHistory(99999)");
 CALL demo_try('valid sale of 1 x 85123A',
     "INSERT INTO invoice_lines VALUES ('600003', 4, '85123A', 1, 3.19)");
+CALL demo_try('sale line corrected to a negative quantity',
+    "UPDATE invoice_lines SET quantity = -5 WHERE invoice_no = '600003' AND line_no = 4");
+CALL demo_try('delete an invoice that still has lines',
+    "DELETE FROM invoices WHERE invoice_no = '600001'");
+CALL demo_try('history of an unknown customer',
+    "CALL GetCustomerInvoiceHistory(99999)");
 
 ROLLBACK;
 

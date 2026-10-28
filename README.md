@@ -9,7 +9,7 @@ deliverables
 - `sql/schema.sql`: phase 2, every create table statement with primary and foreign keys, on delete and on update actions, not null, unique, check and default constraints
 - `sql/queries.sql`: phase 3, the five business scenarios (price update, order cancellation, sales per country, vip customers, germany cross-selling)
 - `sql/advanced.sql`: phase 4, the inventory triggers and the stored procedure `GetCustomerInvoiceHistory`, with a self-cleaning test section
-- `backup/kodes_retail_backup.sql.gz`: full database backup (schema, all data, triggers, procedure)
+- `backup/kodes_retail_backup.sql.gz`: full database backup (schema, all data, triggers, procedure), the clean state before `queries.sql`
 - `docs/erd.svg`, `docs/erd.png`: crow's foot erd
 
 supporting files
@@ -58,15 +58,21 @@ pip install pandas
 MYSQL_PWD=yourpassword ./run_all.sh # with a password
 ```
 
-option c, step by step from the repository root:
+option c, step by step from the repository root (phase 4 before phase 3, so the cancellation in query 2 also returns its goods to stock):
 
 ```
 python3 scripts/clean_data.py data/raw/online_retail_data.csv.gz
 mysql -u root -p < sql/schema.sql
 mysql -u root -p -e "SET GLOBAL local_infile = 1;"
 mysql --local-infile=1 -u root -p kodes_retail < sql/load_data.sql
-mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
 mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/advanced.sql
+mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
 ```
 
-tested on mysql 8.0.46. the scripts avoid mysql-8-only collations, so they also run on mariadb 10.4 or newer (xampp). note that `queries.sql` changes data on purpose (query 1 raises prices, query 2 cancels invoice 581587), and the backup already includes those changes.
+about the backup and the queries
+
+- the backup is the clean database: taken after the import and `advanced.sql`, just before `queries.sql`. restoring it and then running `queries.sql` gives the results in `docs/results/queries_output.txt` (only the `cancelled_at` timestamp of query 2 differs, because it records the moment of the run).
+- `queries.sql` changes data on purpose (query 1 raises prices, query 2 cancels invoice 581587), so restore the backup again before a second run.
+- the test section of `advanced.sql` rolls itself back, so it can be run any number of times.
+
+tested on mysql 8.0.46 and mariadb 10.11: every script runs on both with the same results, and the backup restores on both. `run_all.sh` removes the definer and the two mysql-only parts that mysqldump writes (`regexp_like` and the encryption option), which is what makes the backup restore on mariadb. every feature used exists from mariadb 10.2, so xampp's mariadb 10.4 should run it as well.
