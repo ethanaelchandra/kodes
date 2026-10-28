@@ -8,23 +8,25 @@
     "kept_plus_rejected_equals_raw": true,
     "kept_invoices": 48235,
     "kept_revenue": "19224458.348",
-    "invoice_lines_revenue": "19224458.348",
-    "revenue_reconciles": true,
-    "sale_invoices": 40028,
-    "return_invoices": 8207,
+    "clean_csv": "data/clean/online_retail_clean.csv.gz",
+    "clean_columns": [
+      "Invoice",
+      "LineNo",
+      "StockCode",
+      "Description",
+      "Quantity",
+      "InvoiceDate",
+      "Price",
+      "Customer ID",
+      "Country",
+      "IsGuest"
+    ],
     "registered_customers": 5923,
     "guest_accounts": 15,
-    "stock_items": 4737,
-    "non_stock_items": 16,
-    "max_lines_per_invoice": 1114
-  },
-  "table_rows": {
+    "stock_codes": 4753,
     "countries": 43,
-    "customers": 5938,
-    "products": 4753,
-    "inventory": 4737,
-    "invoices": 48235,
-    "invoice_lines": 1026947
+    "zero_price_lines_kept": 68,
+    "lines_identical_except_line_no": 8
   },
   "rejected_by_reason": {
     "exact duplicate of an earlier row": 34335,
@@ -41,6 +43,7 @@ correction c1: stock codes trimmed and upper-cased (e.g. 15056bl -> 15056BL)  {"
 correction c2: descriptions trimmed and repeated spaces collapsed  {"values_changed": 240346}
 correction c3: invoice date set to the earliest timestamp of the invoice  {"invoices_changed": 83}
 correction c4: country labels standardised: EIRE -> Ireland, RSA -> South Africa, USA -> United States  {"rows_changed": 18354}
-correction c5: customer country = country with the most invoices (tie: most recent)  {"customers_changed": 12}
+correction c5: customer country = country with the most invoices (tie: most recent)  {"customers_changed": 12, "rows_changed": 528}
 correction c6: one canonical description per stock code (most frequent, tie: most recent)  {"products_changed": 596, "rows_changed": 59045}
 correction c7: rows without Customer ID assigned to a guest account per country (ids 1..15)  {"rows_changed": 229158, "guest_accounts": 15}
+clean csv: data/clean/online_retail_clean.csv.gz (1,026,947 rows, columns: Invoice, LineNo, StockCode, Description, Quantity, InvoiceDate, Price, Customer ID, Country, IsGuest)

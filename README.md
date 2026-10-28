@@ -16,13 +16,15 @@ supporting files
 
 - `sql/load_data.sql`: imports the cleaned csv files (the full dataset, not a sample)
 - `scripts/profile_data.py`: finds the anomalies and tests the functional dependencies in the raw csv
-- `scripts/clean_data.py`: the cleaning rules and the split into the 3nf tables
+- `scripts/clean_data.py`: step 1, the cleaning rules; turns the raw csv into the clean csv
+- `scripts/build_tables.py`: step 2, checks the clean csv (columns, blanks, keys, functional dependencies, quantity signs, prices) and splits it into the 3nf tables
 - `scripts/normalization_samples.py`: the unf, 1nf, 2nf and 3nf example tables used in the documentation
 - `scripts/draw_erd.py`: draws the erd
 - `data/raw/online_retail_data.csv.gz`: the raw csv as provided, gzipped
+- `data/clean/online_retail_clean.csv.gz`: the clean csv, gzipped: the raw csv's 8 columns plus `LineNo` and `IsGuest`, 1,026,947 rows, every correction applied
 - `data/clean/*.csv`: one cleaned csv per table, ready for import
 - `data/clean/rejected_rows.csv.gz`: every removed row with the rule that removed it
-- `data/clean/cleaning_report.json`, `data/profile/profile_report.json`: the counts behind every number in the documentation
+- `data/clean/cleaning_report.json`, `data/clean/tables_report.json`, `data/profile/profile_report.json`: the counts behind every number in the documentation
 - `docs/results/*.txt`: the output of each script from the last full run
 - `run_all.sh`: rebuilds everything from the raw csv in phase order
 
@@ -62,6 +64,7 @@ option c, step by step from the repository root (phase 4 before phase 3, so the 
 
 ```
 python3 scripts/clean_data.py data/raw/online_retail_data.csv.gz
+python3 scripts/build_tables.py data/clean/online_retail_clean.csv.gz
 mysql -u root -p < sql/schema.sql
 mysql -u root -p -e "SET GLOBAL local_infile = 1;"
 mysql --local-infile=1 -u root -p kodes_retail < sql/load_data.sql

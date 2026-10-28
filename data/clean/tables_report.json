@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "clean_csv": "data/clean/online_retail_clean.csv.gz",
+    "clean_csv_rows": 1026947,
+    "checks": "all passed",
+    "sale_invoices": 40028,
+    "return_invoices": 8207,
+    "registered_customers": 5923,
+    "guest_accounts": 15,
+    "stock_items": 4737,
+    "non_stock_items": 16,
+    "max_lines_per_invoice": 1114,
+    "clean_csv_revenue": "19224458.348",
+    "invoice_lines_revenue": "19224458.348",
+    "revenue_reconciles": true
+  },
+  "table_rows": {
+    "countries": 43,
+    "customers": 5938,
+    "products": 4753,
+    "inventory": 4737,
+    "invoices": 48235,
+    "invoice_lines": 1026947
+  }
+}
