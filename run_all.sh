@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # rebuild the whole kodes project from the raw csv:
-#   profile -> clean -> schema (phase 2) -> import -> triggers + procedure
-#   (phase 4) -> backup -> queries (phase 3)
+#   profile -> clean (clean csv) -> build tables -> schema (phase 2) -> import
+#   -> triggers + procedure (phase 4) -> backup -> queries (phase 3)
 #
 # phase 4 is installed before the phase 3 queries run, so the cancellation in
 # query 2 also puts its goods back in stock. the backup is taken just before the
@@ -23,8 +23,9 @@ mkdir -p docs/results backup
 echo "1/7 profiling the raw csv"
 python3 scripts/profile_data.py "$RAW" > /dev/null
 
-echo "2/7 cleaning it and splitting it into the 3nf tables"
+echo "2/7 cleaning it (clean csv) and splitting the clean csv into the 3nf tables"
 python3 scripts/clean_data.py "$RAW" > docs/results/cleaning_output.txt
+python3 scripts/build_tables.py data/clean/online_retail_clean.csv.gz > docs/results/build_tables_output.txt
 python3 scripts/normalization_samples.py "$RAW" > /dev/null
 python3 scripts/draw_erd.py > /dev/null   # docs/erd.svg (+ erd.png if playwright is installed)
 

@@ -8,15 +8,25 @@
     "kept_plus_rejected_equals_raw": true,
     "kept_invoices": 48235,
     "kept_revenue": "19224458.348",
-    "invoice_lines_revenue": "19224458.348",
-    "revenue_reconciles": true,
-    "sale_invoices": 40028,
-    "return_invoices": 8207,
+    "clean_csv": "data/clean/online_retail_clean.csv.gz",
+    "clean_columns": [
+      "Invoice",
+      "LineNo",
+      "StockCode",
+      "Description",
+      "Quantity",
+      "InvoiceDate",
+      "Price",
+      "Customer ID",
+      "Country",
+      "IsGuest"
+    ],
     "registered_customers": 5923,
     "guest_accounts": 15,
-    "stock_items": 4737,
-    "non_stock_items": 16,
-    "max_lines_per_invoice": 1114
+    "stock_codes": 4753,
+    "countries": 43,
+    "zero_price_lines_kept": 68,
+    "lines_identical_except_line_no": 8
   },
   "removal_rules": [
     {
@@ -177,6 +187,7 @@
       "fix": "c5",
       "rule": "customer country = country with the most invoices (tie: most recent)",
       "customers_changed": 12,
+      "rows_changed": 528,
       "details": [
         {
           "Customer ID": "12370.0",
@@ -361,14 +372,6 @@
       "guest_accounts": 15
     }
   ],
-  "table_rows": {
-    "countries": 43,
-    "customers": 5938,
-    "products": 4753,
-    "inventory": 4737,
-    "invoices": 48235,
-    "invoice_lines": 1026947
-  },
   "rejected_by_reason": {
     "exact duplicate of an earlier row": 34335,
     "zero-price line with no customer (warehouse stock adjustment, not a sale)": 5943,
@@ -391,5 +394,103 @@
     "13": "United Arab Emirates",
     "14": "United Kingdom",
     "15": "Unspecified"
-  }
+  },
+  "lines_identical_except_line_no": [
+    {
+      "Invoice": "492807",
+      "LineNo": 8,
+      "StockCode": "21813",
+      "Description": "GARLAND WITH STARS AND BELLS",
+      "Quantity": "6",
+      "InvoiceDate": "2009-12-20 12:28:00",
+      "Price": "4.95",
+      "Customer ID": "17211",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "492807",
+      "LineNo": 28,
+      "StockCode": "21813",
+      "Description": "GARLAND WITH STARS AND BELLS",
+      "Quantity": "6",
+      "InvoiceDate": "2009-12-20 12:28:00",
+      "Price": "4.95",
+      "Customer ID": "17211",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "554084",
+      "LineNo": 2,
+      "StockCode": "23298",
+      "Description": "SPOTTY BUNTING",
+      "Quantity": "3",
+      "InvoiceDate": "2011-05-22 11:52:00",
+      "Price": "4.95",
+      "Customer ID": "12909",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "554084",
+      "LineNo": 22,
+      "StockCode": "23298",
+      "Description": "SPOTTY BUNTING",
+      "Quantity": "3",
+      "InvoiceDate": "2011-05-22 11:52:00",
+      "Price": "4.95",
+      "Customer ID": "12909",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "567183",
+      "LineNo": 105,
+      "StockCode": "22659",
+      "Description": "LUNCH BOX I LOVE LONDON",
+      "Quantity": "2",
+      "InvoiceDate": "2011-09-18 15:32:00",
+      "Price": "1.95",
+      "Customer ID": "14769",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "567183",
+      "LineNo": 349,
+      "StockCode": "22659",
+      "Description": "LUNCH BOX I LOVE LONDON",
+      "Quantity": "2",
+      "InvoiceDate": "2011-09-18 15:32:00",
+      "Price": "1.95",
+      "Customer ID": "14769",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "575335",
+      "LineNo": 5,
+      "StockCode": "23203",
+      "Description": "JUMBO BAG VINTAGE DOILY",
+      "Quantity": "300",
+      "InvoiceDate": "2011-11-09 13:56:00",
+      "Price": "1.79",
+      "Customer ID": "12931",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    },
+    {
+      "Invoice": "575335",
+      "LineNo": 8,
+      "StockCode": "23203",
+      "Description": "JUMBO BAG VINTAGE DOILY",
+      "Quantity": "300",
+      "InvoiceDate": "2011-11-09 13:56:00",
+      "Price": "1.79",
+      "Customer ID": "12931",
+      "Country": "United Kingdom",
+      "IsGuest": 0
+    }
+  ]
 }

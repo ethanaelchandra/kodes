@@ -1,7 +1,7 @@
 -- =============================================================================
 -- kodes retail | import the cleaned csv files (full dataset, not a sample)
 -- file    : load_data.sql
--- needs   : schema.sql already run; csv files made by scripts/clean_data.py
+-- needs   : schema.sql already run; csv files made by scripts/build_tables.py
 -- run     : from the repository root, with local infile enabled on both sides:
 --             mysql -u root -p -e "SET GLOBAL local_infile = 1;"
 --             mysql --local-infile=1 -u root -p kodes_retail < sql/load_data.sql
