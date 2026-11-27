@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# rebuild the whole kodes project from the raw csv:
-#   profile -> clean (clean csv) -> build tables -> schema (phase 2) -> import
+# Rebuild the whole KoDes project from the raw CSV:
+#   profile -> clean (clean CSV) -> build tables -> schema (phase 2) -> import
 #   -> triggers + procedure (phase 4) -> backup -> queries (phase 3)
 #
-# phase 4 is installed before the phase 3 queries run, so the cancellation in
-# query 2 also puts its goods back in stock. the backup is taken just before the
+# Phase 4 is installed before the phase 3 queries run, so the cancellation in
+# query 2 also puts its goods back in stock. The backup is taken just before the
 # queries, so a restored copy is the clean database and queries.sql can be run
 # on it with the same results as docs/results/queries_output.txt.
 #
-# run from anywhere; needs python3 with pandas, and the mysql + mysqldump clients.
+# Run from anywhere; needs python3 with pandas, and the mysql + mysqldump clients.
 #   ./run_all.sh                                    # mysql user root, no password
 #   MYSQL_ARGS="-u root -h 127.0.0.1" ./run_all.sh  # other connection options
 #   MYSQL_PWD=secret ./run_all.sh                   # password via environment
@@ -27,7 +27,7 @@ echo "2/7 cleaning it (clean csv) and splitting the clean csv into the 3nf table
 python3 scripts/clean_data.py "$RAW" > docs/results/cleaning_output.txt
 python3 scripts/build_tables.py data/clean/online_retail_clean.csv.gz > docs/results/build_tables_output.txt
 python3 scripts/normalization_samples.py "$RAW" > /dev/null
-python3 scripts/draw_erd.py > /dev/null   # docs/erd.svg (+ erd.png if playwright is installed)
+python3 scripts/draw_erd.py > /dev/null   # docs/erd.svg (+ erd.png if Playwright is installed)
 
 echo "3/7 creating the schema (schema.sql)"
 $MYSQL < sql/schema.sql
@@ -41,9 +41,9 @@ $MYSQL -t kodes_retail < sql/advanced.sql > docs/results/advanced_output.txt
 
 echo "6/7 writing the backup (backup/kodes_retail_backup.sql.gz)"
 # mysqldump output is made portable:
-# - definer clauses are removed, so it restores under any mysql account
-# - the mysql-8-only 'default encryption' clause is removed, and
-# - mysql 8 writes the phone check as regexp_like(), which mariadb (xampp) lacks,
+# - Definer clauses are removed, so it restores under any MySQL account
+# - The MySQL-8-only 'default encryption' clause is removed, and
+# - MySQL 8 writes the phone check as regexp_like(), which MariaDB (XAMPP) lacks,
 #   so it is turned back into the REGEXP operator that both understand
 mysqldump $ARGS --default-character-set=utf8mb4 --single-transaction \
           --routines --triggers --databases kodes_retail \

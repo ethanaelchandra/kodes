@@ -1,35 +1,35 @@
 -- =============================================================================
--- kodes retail | phase 3: data transactions & queries (dml)
--- file    : queries.sql
--- needs   : schema.sql + load_data.sql. running advanced.sql first is better:
+-- KoDes Retail | Phase 3: Data transactions & queries (DML)
+-- File    : queries.sql
+-- Needs   : schema.sql + load_data.sql. Running advanced.sql first is better:
 --           then the cancellation in query 2 also puts its goods back in stock
 --           (run_all.sh runs advanced.sql first for that reason).
--- run     : mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
--- notes   : - revenue = quantity * unit_price of the line (price at time of sale).
---           - only 'Completed' invoices count; 'Cancelled' ones stay in the
+-- Run     : mysql --default-character-set=utf8mb4 -u root -p kodes_retail < sql/queries.sql
+-- Notes   : - Revenue = quantity * unit_price of the line (price at time of sale).
+--           - Only 'Completed' invoices count; 'Cancelled' ones stay in the
 --             database for audit but are excluded from every figure.
 --           - 'Return' invoices (source C-prefixed credit notes) have negative
 --             quantities, so adding them to sales gives net revenue.
---           - per-invoice totals are aggregated first (derived table on the
+--           - Per-invoice totals are aggregated first (derived table on the
 --             invoice_lines primary key), which keeps each report at about
 --             1 second on the full 1,026,947-line dataset.
---           - query 1 and query 2 change data on purpose.
+--           - Query 1 and query 2 change data on purpose.
 -- =============================================================================
 
 USE kodes_retail;
--- literals and @variables use the same collation as the tables
+-- Literals and @variables use the same collation as the tables
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 
 -- =============================================================================
--- query 1: price adjustment campaign (UPDATE)
--- raise the list price (products.unit_price) by 8% for every product that
--- currently costs less than 5.00, rounded to the cent. historical invoice lines
+-- Query 1: Price adjustment campaign (UPDATE)
+-- Raise the list price (products.unit_price) by 8% for every product that
+-- currently costs less than 5.00, rounded to the cent. Historical invoice lines
 -- keep the price that was actually paid, because they store their own
 -- unit_price, so the campaign never rewrites past sales.
 -- =============================================================================
 
--- 1a. preview: how many products will be repriced
+-- 1a. Preview: how many products will be repriced
 SELECT COUNT(*)        AS products_below_5,
        MIN(unit_price) AS lowest_price,
        MAX(unit_price) AS highest_price
@@ -38,24 +38,24 @@ WHERE unit_price < 5.00;
 
 START TRANSACTION;
 
--- 1b. keep the old prices so the change can be checked afterwards
+-- 1b. Keep the old prices so the change can be checked afterwards
 CREATE TEMPORARY TABLE q1_old_prices AS
 SELECT stock_code, unit_price AS old_price
 FROM products
 WHERE unit_price < 5.00;
 
--- 1c. the price change itself
+-- 1c. The price change itself
 UPDATE products
 SET unit_price = ROUND(unit_price * 1.08, 2)
 WHERE unit_price < 5.00;
 
--- rows actually changed: a price of 0.00, or of a few cents, rounds back to the
+-- Rows actually changed: a price of 0.00, or of a few cents, rounds back to the
 -- same value, because 8% of it is less than half a cent
 SELECT ROW_COUNT() AS products_repriced;
 
 COMMIT;
 
--- 1d. before vs after for a sample of products
+-- 1d. Before vs after for a sample of products
 SELECT o.stock_code,
        p.description,
        o.old_price,
@@ -70,20 +70,20 @@ DROP TEMPORARY TABLE q1_old_prices;
 
 
 -- =============================================================================
--- query 2: order cancellation processing (UPDATE, soft cancel)
--- a customer asks to cancel invoice 581587. the invoice is not deleted: its
--- status becomes 'Cancelled' and cancelled_at records when. the header and all
--- its lines stay in the database as the audit record. only a completed sale can
+-- Query 2: Order cancellation processing (UPDATE, soft cancel)
+-- A customer asks to cancel invoice 581587. The invoice is not deleted: its
+-- status becomes 'Cancelled' and cancelled_at records when. The header and all
+-- its lines stay in the database as the audit record. Only a completed sale can
 -- be cancelled (a return or an already cancelled invoice is left untouched).
--- with advanced.sql installed, trigger 4 also puts the goods back in stock.
+-- With advanced.sql installed, trigger 4 also puts the goods back in stock.
 -- =============================================================================
 
--- the _utf8mb4 introducer and COLLATE give the variable the tables' collation,
--- so this also works when the query is run on its own in workbench or
--- phpmyadmin (without them mysql 8 reports "illegal mix of collations")
+-- The _utf8mb4 introducer and COLLATE give the variable the tables' collation,
+-- so this also works when the query is run on its own in Workbench or
+-- phpMyAdmin (without them MySQL 8 reports "illegal mix of collations")
 SET @invoice_to_cancel = _utf8mb4'581587' COLLATE utf8mb4_unicode_ci;
 
--- 2a. the invoice before the cancellation
+-- 2a. The invoice before the cancellation
 SELECT i.invoice_no, i.customer_id, i.invoice_date, i.invoice_type, i.status, i.cancelled_at,
        COUNT(l.line_no)                       AS line_count,
        ROUND(SUM(l.quantity * l.unit_price), 2) AS invoice_value
@@ -106,7 +106,7 @@ SELECT ROW_COUNT() AS invoices_cancelled;
 
 COMMIT;
 
--- 2b. after: same invoice, same lines, new status (nothing was deleted)
+-- 2b. After: same invoice, same lines, new status (nothing was deleted)
 SELECT i.invoice_no, i.customer_id, i.invoice_date, i.invoice_type, i.status, i.cancelled_at,
        COUNT(l.line_no)                       AS line_count,
        ROUND(SUM(l.quantity * l.unit_price), 2) AS invoice_value
@@ -117,13 +117,13 @@ GROUP BY i.invoice_no, i.customer_id, i.invoice_date, i.invoice_type, i.status, 
 
 
 -- =============================================================================
--- query 3: regional sales breakdown (JOIN & GROUP BY)
--- total sales revenue and number of completed invoices per country, highest
+-- Query 3: Regional sales breakdown (JOIN & GROUP BY)
+-- Total sales revenue and number of completed invoices per country, highest
 -- revenue first. completed_invoices counts completed sale invoices; returns
 -- (credit notes) reduce revenue but are not counted as invoices.
--- country comes from the customer (guest accounts carry their own country), so
+-- Country comes from the customer (guest accounts carry their own country), so
 -- the 12 customers who had invoices under two countries count under their main
--- one (cleaning correction c5).
+-- one (cleaning correction C5).
 -- =============================================================================
 
 SELECT co.country_name                                                AS country,
@@ -132,7 +132,7 @@ SELECT co.country_name                                                AS country
        ROUND(SUM(CASE WHEN i.invoice_type = 'Return' THEN t.invoice_value ELSE 0 END), 2) AS returns_value,
        ROUND(SUM(t.invoice_value), 2)                                 AS total_revenue
 FROM (
-        -- value of each invoice, summed on the invoice_lines primary key
+        -- Value of each invoice, summed on the invoice_lines primary key
         SELECT invoice_no, SUM(quantity * unit_price) AS invoice_value
         FROM invoice_lines
         GROUP BY invoice_no
@@ -146,16 +146,16 @@ ORDER BY total_revenue DESC;
 
 
 -- =============================================================================
--- query 4: vip high-spender identification (nested subquery)
--- customers whose total spend is greater than the average total spend of all
--- customers. total spend = net value of their completed invoices (sales minus
--- returns). the 15 guest accounts are not real customers (each one pools the
+-- Query 4: VIP high-spender identification (nested subquery)
+-- Customers whose total spend is greater than the average total spend of all
+-- customers. Total spend = net value of their completed invoices (sales minus
+-- returns). The 15 guest accounts are not real customers (each one pools the
 -- anonymous orders of a whole country), so they are left out of both the list
--- and the average. customers with no purchases count as 0 in the average
+-- and the average. Customers with no purchases count as 0 in the average
 -- (left join + coalesce).
 -- =============================================================================
 
--- 4a. the threshold, shown for reference
+-- 4a. The threshold, shown for reference
 SELECT ROUND(AVG(per_customer.total_spend), 2) AS average_customer_spend
 FROM (
         SELECT c.customer_id, COALESCE(SUM(l.quantity * l.unit_price), 0) AS total_spend
@@ -166,7 +166,7 @@ FROM (
         GROUP BY c.customer_id
      ) AS per_customer;
 
--- 4b. the vip list
+-- 4b. The VIP list
 SELECT c.customer_id,
        co.country_name             AS country,
        c.email,
@@ -178,7 +178,7 @@ SELECT c.customer_id,
 FROM customers AS c
 JOIN countries AS co ON co.country_id = c.country_id
 JOIN (
-        -- total spend per customer
+        -- Total spend per customer
         SELECT i.customer_id,
                COUNT(CASE WHEN i.invoice_type = 'Sale' THEN 1 END) AS invoice_count,
                MIN(CASE WHEN i.invoice_type = 'Sale' THEN i.invoice_date END) AS first_purchase,
@@ -195,7 +195,7 @@ JOIN (
      ) AS s ON s.customer_id = c.customer_id
 WHERE c.is_guest = FALSE
   AND s.total_spend > (
-        -- average total spend of all customers (nested subquery)
+        -- Average total spend of all customers (nested subquery)
         SELECT AVG(per_customer.total_spend)
         FROM (
                 SELECT c2.customer_id,
@@ -212,16 +212,16 @@ ORDER BY s.total_spend DESC, c.customer_id;
 
 
 -- =============================================================================
--- query 5: product performance & cross-selling (subquery / complex filtering)
--- products never bought by any customer from 'Germany', but bought by customers
--- from at least two other countries. "bought" = a line on a completed sale
+-- Query 5: Product performance & cross-selling (subquery / complex filtering)
+-- Products never bought by any customer from 'Germany', but bought by customers
+-- from at least two other countries. "Bought" = a line on a completed sale
 -- invoice (returns and cancelled orders are not purchases).
--- - only real countries are counted: labels that do not name one country
+-- - Only real countries are counted: labels that do not name one country
 --   ('Unspecified', 'European Community', 'Channel Islands', 'West Indies',
 --   countries.is_country = FALSE) cannot count as a second country.
--- - only merchandise is considered (is_stock_item = TRUE): postage, carriage,
+-- - Only merchandise is considered (is_stock_item = TRUE): postage, carriage,
 --   bank charges and vouchers are billable codes, not products to sell.
--- the result is the list of proven products to push into the german market.
+-- The result is the list of proven products to push into the German market.
 -- =============================================================================
 
 SELECT p.stock_code,
@@ -229,7 +229,7 @@ SELECT p.stock_code,
        COUNT(*)                                                              AS buyer_countries,
        GROUP_CONCAT(co.country_name ORDER BY co.country_name SEPARATOR ', ') AS bought_in
 FROM (
-        -- which countries bought each product: one row per (product, country)
+        -- Which countries bought each product: one row per (product, country)
         SELECT DISTINCT l.stock_code, c.country_id
         FROM invoices      AS i
         JOIN invoice_lines AS l ON l.invoice_no  = i.invoice_no
@@ -242,7 +242,7 @@ JOIN countries AS co ON co.country_id = pc.country_id
 WHERE p.is_stock_item = TRUE
   AND co.is_country   = TRUE
   AND p.stock_code NOT IN (
-        -- every product bought at least once by a customer from germany
+        -- Every product bought at least once by a customer from Germany
         -- (stock_code is NOT NULL, so NOT IN is safe here)
         SELECT l2.stock_code
         FROM invoice_lines AS l2
@@ -254,5 +254,5 @@ WHERE p.is_stock_item = TRUE
           AND i2.status        = 'Completed'
       )
 GROUP BY p.stock_code, p.description
-HAVING COUNT(*) >= 2          -- at least two other (real) countries
+HAVING COUNT(*) >= 2          -- At least two other (real) countries
 ORDER BY buyer_countries DESC, p.stock_code;

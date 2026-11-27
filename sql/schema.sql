@@ -1,11 +1,11 @@
 -- =============================================================================
--- kodes retail | phase 2: database implementation (ddl)
--- file    : schema.sql
--- target  : mysql 8.0.16+ (check constraints are enforced from 8.0.16)
---           also tested on mariadb 10.11; every feature used exists from
---           mariadb 10.2, so xampp's mariadb 10.4 should run it as well
--- run     : mysql -u root -p < sql/schema.sql
--- note    : this script drops and recreates the kodes_retail database
+-- KoDes Retail | Phase 2: Database implementation (DDL)
+-- File    : schema.sql
+-- Target  : MySQL 8.0.16+ (check constraints are enforced from 8.0.16)
+--           also tested on MariaDB 10.11; every feature used exists from
+--           MariaDB 10.2, so XAMPP's MariaDB 10.4 should run it as well
+-- Run     : mysql -u root -p < sql/schema.sql
+-- Note    : This script drops and recreates the kodes_retail database
 -- =============================================================================
 
 DROP DATABASE IF EXISTS kodes_retail;
@@ -16,7 +16,7 @@ USE kodes_retail;
 
 -- -----------------------------------------------------------------------------
 -- countries: lookup table, one row per country label.
--- replaces the free-text Country column so a country is stored (and renamed) once.
+-- Replaces the free-text Country column so a country is stored (and renamed) once.
 -- is_country = FALSE for the 4 source labels that do not name one country
 -- ('Unspecified', 'European Community', 'Channel Islands', 'West Indies'):
 -- they stay for revenue reports, but are not counted as countries (query 5).
@@ -32,9 +32,9 @@ CREATE TABLE countries (
 ) ENGINE = InnoDB;
 
 -- -----------------------------------------------------------------------------
--- customers: CustomerID -> Country (3nf: country moved out of the invoice).
--- customer_id keeps the original ids (12346-18287). ids 1-15 are guest accounts
--- (one per country) for sales recorded without a customer id. new customers
+-- customers: CustomerID -> Country (3NF: country moved out of the invoice).
+-- customer_id keeps the original IDs (12346-18287). IDs 1-15 are guest accounts
+-- (one per country) for sales recorded without a customer ID. New customers
 -- continue from the auto_increment counter (18288+).
 -- email/phone are new attributes for contact info (unknown for imported rows).
 -- -----------------------------------------------------------------------------
@@ -49,15 +49,15 @@ CREATE TABLE customers (
     CONSTRAINT uq_customers_email UNIQUE (email),
     CONSTRAINT fk_customers_country FOREIGN KEY (country_id)
         REFERENCES countries (country_id)
-        ON UPDATE CASCADE      -- a re-numbered country follows automatically
-        ON DELETE RESTRICT,    -- cannot delete a country that still has customers
+        ON UPDATE CASCADE      -- A re-numbered country follows automatically
+        ON DELETE RESTRICT,    -- Cannot delete a country that still has customers
     CONSTRAINT chk_customers_email CHECK (email IS NULL OR email LIKE '%_@_%._%'),
     CONSTRAINT chk_customers_phone CHECK (phone IS NULL OR phone REGEXP '^[+]?[0-9 ()-]{6,20}$')
 ) ENGINE = InnoDB;
 
 -- -----------------------------------------------------------------------------
--- products: StockCode -> Description (3nf: description moved out of the line).
--- unit_price is the current list price (what query 1 updates). the price paid
+-- products: StockCode -> Description (3NF: description moved out of the line).
+-- unit_price is the current list price (what query 1 updates). The price paid
 -- on each sale stays in invoice_lines.unit_price, because the same product was
 -- sold at many different prices (StockCode does not determine Price).
 -- is_stock_item = FALSE for postage, carriage, manual, discount, samples,
@@ -76,9 +76,9 @@ CREATE TABLE products (
 
 -- -----------------------------------------------------------------------------
 -- inventory: new table (1:0..1 with products) holding stock levels for physical
--- items only. kept apart from products so the busy stock counter is updated
+-- items only. Kept apart from products so the busy stock counter is updated
 -- without touching the catalogue, and so a warehouse column can be added later.
--- maintained automatically by the triggers in advanced.sql.
+-- Maintained automatically by the triggers in advanced.sql.
 -- -----------------------------------------------------------------------------
 CREATE TABLE inventory (
     stock_code        VARCHAR(20) NOT NULL,
@@ -90,17 +90,17 @@ CREATE TABLE inventory (
     CONSTRAINT pk_inventory PRIMARY KEY (stock_code),
     CONSTRAINT fk_inventory_product FOREIGN KEY (stock_code)
         REFERENCES products (stock_code)
-        ON UPDATE CASCADE      -- renamed stock code follows automatically
-        ON DELETE CASCADE,     -- a stock row means nothing without its product
-    CONSTRAINT chk_inventory_qty     CHECK (quantity_on_hand >= 0),  -- no overselling
+        ON UPDATE CASCADE      -- Renamed stock code follows automatically
+        ON DELETE CASCADE,     -- A stock row means nothing without its product
+    CONSTRAINT chk_inventory_qty     CHECK (quantity_on_hand >= 0),  -- No overselling
     CONSTRAINT chk_inventory_reorder CHECK (reorder_level >= 0)
 ) ENGINE = InnoDB;
 
 -- -----------------------------------------------------------------------------
--- invoices: Invoice -> InvoiceDate, CustomerID (2nf: header split from lines).
+-- invoices: Invoice -> InvoiceDate, CustomerID (2NF: header split from lines).
 -- invoice_type: 'Sale' for normal invoices, 'Return' for the source's
 --   C-prefixed credit notes (negative quantities).
--- status: 'Completed' or 'Cancelled'. cancelling never deletes the invoice or
+-- status: 'Completed' or 'Cancelled'. Cancelling never deletes the invoice or
 --   its lines (audit trail); cancelled_at records when it happened.
 --   status is the order's state and cancelled_at the audit time of one event;
 --   today they move together (a check keeps them consistent), but the status
@@ -118,8 +118,8 @@ CREATE TABLE invoices (
     CONSTRAINT pk_invoices PRIMARY KEY (invoice_no),
     CONSTRAINT fk_invoices_customer FOREIGN KEY (customer_id)
         REFERENCES customers (customer_id)
-        ON UPDATE CASCADE      -- merged/re-numbered customer follows automatically
-        ON DELETE RESTRICT,    -- sales history protects the customer row
+        ON UPDATE CASCADE      -- Merged/re-numbered customer follows automatically
+        ON DELETE RESTRICT,    -- Sales history protects the customer row
     CONSTRAINT chk_invoices_type   CHECK (invoice_type IN ('Sale', 'Return')),
     CONSTRAINT chk_invoices_status CHECK (status IN ('Completed', 'Cancelled')),
     -- cancelled_at is filled exactly when the invoice is cancelled
@@ -146,13 +146,13 @@ CREATE TABLE invoice_lines (
     CONSTRAINT pk_invoice_lines PRIMARY KEY (invoice_no, line_no),
     CONSTRAINT fk_lines_invoice FOREIGN KEY (invoice_no)
         REFERENCES invoices (invoice_no)
-        ON UPDATE CASCADE      -- lines follow a corrected invoice number
-        ON DELETE RESTRICT,    -- an invoice with lines cannot be deleted: cancel it
+        ON UPDATE CASCADE      -- Lines follow a corrected invoice number
+        ON DELETE RESTRICT,    -- An invoice with lines cannot be deleted: cancel it
                                -- instead, so the audit trail and the stock stay right
     CONSTRAINT fk_lines_product FOREIGN KEY (stock_code)
         REFERENCES products (stock_code)
-        ON UPDATE CASCADE      -- lines follow a renamed stock code
-        ON DELETE RESTRICT,    -- a product with sales history cannot be deleted
+        ON UPDATE CASCADE      -- Lines follow a renamed stock code
+        ON DELETE RESTRICT,    -- A product with sales history cannot be deleted
     CONSTRAINT chk_lines_line_no  CHECK (line_no >= 1),
     CONSTRAINT chk_lines_quantity CHECK (quantity <> 0),
     CONSTRAINT chk_lines_price    CHECK (unit_price >= 0)

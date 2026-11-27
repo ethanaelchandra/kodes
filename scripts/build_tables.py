@@ -1,17 +1,17 @@
 """
-step 2 of 2: check the clean csv and split it into the 3nf tables.
+Step 2 of 2: check the clean CSV and split it into the 3NF tables.
 
-reads data/clean/online_retail_clean.csv.gz (made by scripts/clean_data.py) and
+Reads data/clean/online_retail_clean.csv.gz (made by scripts/clean_data.py) and
 first checks that it is ready for the database: the columns, no blank cells, the
 key (Invoice, LineNo), the functional dependencies, the quantity signs and the
-prices. if anything is wrong it lists the problems and stops without writing.
-then it writes one csv per table for sql/load_data.sql:
+prices. If anything is wrong it lists the problems and stops without writing.
+Then it writes one CSV per table for sql/load_data.sql:
 
     data/clean/{countries,customers,products,inventory,invoices,invoice_lines}.csv
 
 and the table counts to data/clean/tables_report.json.
 
-usage:  python3 scripts/build_tables.py data/clean/online_retail_clean.csv.gz
+Usage:  python3 scripts/build_tables.py data/clean/online_retail_clean.csv.gz
 """
 import json
 import math
@@ -28,15 +28,15 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 COLUMNS = ["Invoice", "LineNo", "StockCode", "Description", "Quantity", "InvoiceDate", "Price",
            "Customer ID", "Country", "IsGuest"]
-# codes that are real customer charges but not physical stock (no inventory row)
+# Codes that are real customer charges but not physical stock (no inventory row)
 NON_STOCK_CODES = {"POST", "DOT", "C2", "M", "D", "S", "BANK CHARGES", "PADS"}
-NON_STOCK_PREFIXES = ("GIFT_0001_",)  # gift vouchers (22016 is also a voucher, caught by its description)
-# country labels kept as they are (the real country is unknown) but flagged as not being one country
+NON_STOCK_PREFIXES = ("GIFT_0001_",)  # Gift vouchers (22016 is also a voucher, caught by its description)
+# Country labels kept as they are (the real country is unknown) but flagged as not being one country
 NON_COUNTRY_LABELS = {"Unspecified", "European Community", "Channel Islands", "West Indies"}
 
 df = pd.read_csv(CLEAN, dtype=str, keep_default_na=False)
 
-# ---------------------------------------------------------------- checks
+# ---------------------------------------------------------------- Checks
 problems = []
 
 
@@ -76,7 +76,7 @@ check(df["InvoiceDate"].str.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d").all()
 check(df["Customer ID"].str.fullmatch(r"[1-9]\d*").all(), "Customer ID must be a whole number")
 check(df["IsGuest"].isin(["0", "1"]).all(), "IsGuest must be 0 or 1")
 
-# key, document rules and functional dependencies (numbers read leniently here, so
+# Key, document rules and functional dependencies (numbers read leniently here, so
 # every problem in the file is listed in one run, not only the first one)
 dup = df.duplicated(["Invoice", "LineNo"], keep=False)
 check(not dup.any(), f"(Invoice, LineNo) must be unique, but {many(int(dup.sum()), 'row')} share a key"
@@ -109,7 +109,7 @@ def money(x) -> Decimal:
     return Decimal(str(x))
 
 
-# ---------------------------------------------------------------- build tables
+# ---------------------------------------------------------------- Build tables
 df["invoice_type"] = np.where(credit, "Return", "Sale")
 df["qty"] = qty
 df["price"] = df["Price"].astype(float)
@@ -129,12 +129,12 @@ customers = customers.sort_values("customer_id").reset_index(drop=True)
 customers["email"] = None
 customers["phone"] = None
 
-# products: the clean csv already has one description per stock code
+# products: the clean CSV already has one description per stock code
 products = (df.drop_duplicates("StockCode")[["StockCode", "Description"]]
             .rename(columns={"StockCode": "stock_code", "Description": "description"})
             .sort_values("stock_code").reset_index(drop=True))
 
-# list price = the price the product was most often sold at (tie: most recent); fallback any positive price; else 0
+# List price = the price the product was most often sold at (tie: most recent); fallback any positive price; else 0
 sale_lines = df[(df.invoice_type == "Sale") & (df.price > 0)]
 any_lines = df[df.price > 0]
 
@@ -151,7 +151,7 @@ products["is_stock_item"] = (~products["stock_code"].isin(NON_STOCK_CODES)
                              & ~products["stock_code"].str.startswith(NON_STOCK_PREFIXES)
                              & ~products["description"].str.contains("GIFT VOUCHER", case=False)).astype(int)
 
-# inventory (stock items only). the csv has no stock counts, so opening stock is a planning estimate:
+# inventory (stock items only). The CSV has no stock counts, so opening stock is a planning estimate:
 # quantity_on_hand = busiest month's net units, reorder_level = average monthly net units (rounded up)
 stock_codes = set(products.loc[products.is_stock_item == 1, "stock_code"])
 mv = df[df["StockCode"].isin(stock_codes)].assign(month=lambda x: x["InvoiceDate"].str[:7])
@@ -172,10 +172,10 @@ lines = pd.DataFrame({"invoice_no": df["Invoice"], "line_no": line_no, "stock_co
                       "quantity": df["qty"], "unit_price": df["Price"].map(lambda p: f"{money(p):.3f}")})
 
 
-# ---------------------------------------------------------------- write
+# ---------------------------------------------------------------- Write
 def write(frame: pd.DataFrame, name: str):
     out = frame.copy()
-    for c in out.columns:  # mysql load data treats backslash as an escape character
+    for c in out.columns:  # MySQL load data treats backslash as an escape character
         if out[c].dtype == object:
             out[c] = out[c].map(lambda v: v.replace("\\", "\\\\") if isinstance(v, str) else v)
     out.to_csv(OUT / f"{name}.csv", index=False, na_rep="\\N", lineterminator="\n")
