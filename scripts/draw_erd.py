@@ -162,7 +162,7 @@ for parent, child, pend, cend, text in RELS:
     svg += marker(b[0], b[1], db[0], db[1], cend)
     svg.append(f'<text class="l" x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}">{text}</text>')
 
-svg.append(f'<text class="o" x="{MARGIN}" y="{MARGIN + 2}" font-size="12">kodes_retail · crow\'s foot erd · '
+svg.append(f'<text class="o" x="{MARGIN}" y="{MARGIN + 2}" font-size="12">kodes_retail · Crow\'s foot ERD · '
            f'PK primary key, FK foreign key, UK unique</text>')
 svg.append("</svg>")
 svg = [re.sub(r'(\d)\.0(?=\D)', r'\1', part) for part in svg]  # 42.0 -> 42
