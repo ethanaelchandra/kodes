@@ -1,9 +1,9 @@
 """
-draw the crow's foot erd of the kodes_retail database as a compact svg
-(and a png through chromium when playwright is available).
+Draw the crow's foot ERD of the kodes_retail database as a compact SVG
+(and a PNG through Chromium when Playwright is available).
 
-usage:  python3 scripts/draw_erd.py
-output: docs/erd.svg, docs/erd.png
+Usage:  python3 scripts/draw_erd.py
+Output: docs/erd.svg, docs/erd.png
 """
 import re
 from pathlib import Path
@@ -55,7 +55,7 @@ TABLES = {
 }
 GRID = [["countries", "customers", "invoices"], ["inventory", "products", "invoice_lines"]]
 
-CW = 6.9          # average character width at 12.5px
+CW = 6.9          # Average character width at 12.5px
 ROW, HEAD, PAD = 24, 30, 9
 GAP_X, GAP_Y, MARGIN = 132, 92, 24
 
@@ -89,7 +89,7 @@ for t, rows in TABLES.items():
     x, y = pos[t]
     w, h = box_w[t], box_h[t]
     cw = widths[t]
-    cw[-1] += w - sum(cw)  # stretch the note column to the box width
+    cw[-1] += w - sum(cw)  # Stretch the note column to the box width
     svg.append(f'<rect class="b" x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}"/>')
     svg.append(f'<rect class="hd" x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{HEAD}"/>')
     svg.append(f'<text class="h" x="{x + w / 2:.1f}" y="{y + 20:.1f}" text-anchor="middle">{t}</text>')
@@ -105,7 +105,7 @@ for t, rows in TABLES.items():
                 svg.append(f'<text class="{cls}" x="{cx + PAD:.1f}" y="{ry + 16:.1f}">{escape(val)}</text>')
             cx += cw[j]
 
-# relationships: (parent, child, parent end, child end, label)
+# Relationships: (parent, child, parent end, child end, label)
 #   one = exactly one (||), many0 = zero or many (o<), many1 = one or many (|<), one0 = zero or one (o|)
 RELS = [
     ("countries", "customers", "one", "many0", "is home of"),
@@ -117,8 +117,8 @@ RELS = [
 
 
 def marker(px, py, dx, dy, kind):
-    """draw the crow's foot end at (px, py) on the box edge; (dx, dy) points away from the box."""
-    nx, ny = -dy, dx  # perpendicular
+    """Draw the crow's foot end at (px, py) on the box edge; (dx, dy) points away from the box."""
+    nx, ny = -dy, dx  # Perpendicular
     out = []
     tick = lambda d: out.append(
         f'<line class="r" x1="{px + dx * d + nx * 7:.1f}" y1="{py + dy * d + ny * 7:.1f}" '
@@ -145,7 +145,7 @@ def marker(px, py, dx, dy, kind):
 for parent, child, pend, cend, text in RELS:
     (px, py), (cx_, cy_) = pos[parent], pos[child]
     pw, ph, cw_, ch = box_w[parent], box_h[parent], box_w[child], box_h[child]
-    if abs(py - cy_) < 1:  # same row: horizontal line between facing edges
+    if abs(py - cy_) < 1:  # Same row: horizontal line between facing edges
         y = py + HEAD + ROW * 0.5 + 2
         if px < cx_:
             a, b, da, db = (px + pw, y), (cx_, y), (1, 0), (-1, 0)
@@ -153,7 +153,7 @@ for parent, child, pend, cend, text in RELS:
             a, b, da, db = (px, y), (cx_ + cw_, y), (-1, 0), (1, 0)
         lx, ly = (a[0] + b[0]) / 2, y - 7
         anchor = "middle"
-    else:  # same column: vertical line
+    else:  # Same column: vertical line
         x = px + pw / 2
         a, b, da, db = (x, py + ph), (x, cy_), (0, 1), (0, -1)
         lx, ly, anchor = x + 10, (a[1] + b[1]) / 2 + 4, "start"
@@ -162,7 +162,7 @@ for parent, child, pend, cend, text in RELS:
     svg += marker(b[0], b[1], db[0], db[1], cend)
     svg.append(f'<text class="l" x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}">{text}</text>')
 
-svg.append(f'<text class="o" x="{MARGIN}" y="{MARGIN + 2}" font-size="12">kodes_retail · crow\'s foot erd · '
+svg.append(f'<text class="o" x="{MARGIN}" y="{MARGIN + 2}" font-size="12">kodes_retail · Crow\'s foot ERD · '
            f'PK primary key, FK foreign key, UK unique</text>')
 svg.append("</svg>")
 svg = [re.sub(r'(\d)\.0(?=\D)', r'\1', part) for part in svg]  # 42.0 -> 42
@@ -178,5 +178,5 @@ try:
         pg.locator("svg").screenshot(path=str(OUT / "erd.png"), animations="disabled", timeout=20000)
         b.close()
     print("docs/erd.png written")
-except Exception as e:  # playwright is optional
+except Exception as e:  # Playwright is optional
     print("png skipped:", e)

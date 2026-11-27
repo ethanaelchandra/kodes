@@ -1,4 +1,4 @@
-unf
+UNF
 
 | Invoice | InvoiceDate | Customer ID | Country | StockCode | Description | Quantity | Price |
 |---|---|---|---|---|---|---|---|
@@ -15,7 +15,7 @@ unf
 |  |  |  |  | 22188 | BLACK HEART CARD HOLDER | 10 | 3.95 |
 |  |  |  |  | 22189 | CREAM HEART CARD HOLDER | 24 | 3.95 |
 
-1nf
+1NF
 
 | Invoice | LineNo | StockCode | Description | Quantity | InvoiceDate | Price | Customer ID | Country |
 |---|---|---|---|---|---|---|---|---|
@@ -32,7 +32,7 @@ unf
 | 492581 | 3 | 22188 | BLACK HEART CARD HOLDER | 10 | 2009-12-17 15:02:00 | 3.95 | 15270 | United Kingdom |
 | 492581 | 4 | 22189 | CREAM HEART CARD HOLDER | 24 | 2009-12-17 15:02:00 | 3.95 | 15270 | United Kingdom |
 
-2nf invoice
+2NF invoice
 
 | Invoice | InvoiceDate | Customer ID | Country |
 |---|---|---|---|
@@ -40,7 +40,7 @@ unf
 | 564481 | 2011-08-25 13:33:00 | 12464 | Belgium |
 | 492581 | 2009-12-17 15:02:00 | 15270 | United Kingdom |
 
-2nf invoice_line
+2NF invoice_line
 
 | Invoice | LineNo | StockCode | Description | Quantity | Price |
 |---|---|---|---|---|---|
@@ -57,14 +57,14 @@ unf
 | 492581 | 3 | 22188 | BLACK HEART CARD HOLDER | 10 | 3.95 |
 | 492581 | 4 | 22189 | CREAM HEART CARD HOLDER | 24 | 3.95 |
 
-3nf customer
+3NF customer
 
 | Customer ID | Country |
 |---|---|
 | 12464 | Belgium |
 | 15270 | United Kingdom |
 
-3nf product
+3NF product
 
 | StockCode | Description |
 |---|---|
@@ -77,7 +77,7 @@ unf
 | 22188 | BLACK HEART CARD HOLDER |
 | 22189 | CREAM HEART CARD HOLDER |
 
-3nf invoice
+3NF invoice
 
 | Invoice | InvoiceDate | Customer ID |
 |---|---|---|
@@ -85,7 +85,7 @@ unf
 | 564481 | 2011-08-25 13:33:00 | 12464 |
 | 492581 | 2009-12-17 15:02:00 | 15270 |
 
-3nf invoice_line
+3NF invoice_line
 
 | Invoice | LineNo | StockCode | Quantity | Price |
 |---|---|---|---|---|

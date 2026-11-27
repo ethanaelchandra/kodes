@@ -1,14 +1,14 @@
 """
-build the sample tables used in the documentation to show each normal form
-(unf -> 1nf -> 2nf -> 3nf) on three real invoices from the raw csv:
+Build the sample tables used in the documentation to show each normal form
+(UNF -> 1NF -> 2NF -> 3NF) on three real invoices from the raw CSV:
 
-  554159 and 564481  same customer (12464, belgium) buying the same bread bins
+  554159 and 564481  same customer (12464, Belgium) buying the same bread bins
                      at two different prices -> price belongs to the sale line
   492581             the same product (85123A) twice on one invoice at two
-                     prices -> (invoice, stockcode) is not a key, line_no is needed
+                     prices -> (Invoice, StockCode) is not a key, line_no is needed
 
-usage:  python3 scripts/normalization_samples.py data/raw/online_retail_data.csv.gz
-output: docs/normalization_samples.md (markdown tables)
+Usage:  python3 scripts/normalization_samples.py data/raw/online_retail_data.csv.gz
+Output: docs/normalization_samples.md (Markdown tables)
 """
 import sys
 from pathlib import Path
@@ -38,32 +38,32 @@ def md(frame: pd.DataFrame) -> str:
 
 parts = []
 
-# unf: one record per invoice, the product columns form a repeating group
+# UNF: one record per invoice, the product columns form a repeating group
 unf = s[["Invoice", "InvoiceDate", "Customer ID", "Country", "StockCode", "Description", "Quantity", "Price"]].copy()
 first = ~unf["Invoice"].duplicated()
 for c in ["Invoice", "InvoiceDate", "Customer ID", "Country"]:
     unf.loc[~first, c] = ""
-parts.append(("unf", md(unf)))
+parts.append(("UNF", md(unf)))
 
-# 1nf: flat, atomic, key (Invoice, LineNo)
+# 1NF: flat, atomic, key (Invoice, LineNo)
 one = s[["Invoice", "LineNo", "StockCode", "Description", "Quantity", "InvoiceDate", "Price", "Customer ID", "Country"]]
-parts.append(("1nf", md(one)))
+parts.append(("1NF", md(one)))
 
-# 2nf: header split from lines
+# 2NF: header split from lines
 inv = s.drop_duplicates("Invoice")[["Invoice", "InvoiceDate", "Customer ID", "Country"]]
 lines2 = s[["Invoice", "LineNo", "StockCode", "Description", "Quantity", "Price"]]
-parts.append(("2nf invoice", md(inv)))
-parts.append(("2nf invoice_line", md(lines2)))
+parts.append(("2NF invoice", md(inv)))
+parts.append(("2NF invoice_line", md(lines2)))
 
-# 3nf: product and customer split out
+# 3NF: product and customer split out
 prod = s.drop_duplicates("StockCode")[["StockCode", "Description"]]
 cust = s.drop_duplicates("Customer ID")[["Customer ID", "Country"]]
 inv3 = s.drop_duplicates("Invoice")[["Invoice", "InvoiceDate", "Customer ID"]]
 lines3 = s[["Invoice", "LineNo", "StockCode", "Quantity", "Price"]]
-parts.append(("3nf customer", md(cust)))
-parts.append(("3nf product", md(prod)))
-parts.append(("3nf invoice", md(inv3)))
-parts.append(("3nf invoice_line", md(lines3)))
+parts.append(("3NF customer", md(cust)))
+parts.append(("3NF product", md(prod)))
+parts.append(("3NF invoice", md(inv3)))
+parts.append(("3NF invoice_line", md(lines3)))
 
 out = Path("docs/normalization_samples.md")
 out.write_text("\n\n".join(f"{name}\n\n{table}" for name, table in parts) + "\n")

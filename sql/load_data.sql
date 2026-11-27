@@ -1,11 +1,11 @@
 -- =============================================================================
--- kodes retail | import the cleaned csv files (full dataset, not a sample)
--- file    : load_data.sql
--- needs   : schema.sql already run; csv files made by scripts/build_tables.py
--- run     : from the repository root, with local infile enabled on both sides:
+-- KoDes Retail | Import the cleaned CSV files (full dataset, not a sample)
+-- File    : load_data.sql
+-- Needs   : schema.sql already run; CSV files made by scripts/build_tables.py
+-- Run     : From the repository root, with local infile enabled on both sides:
 --             mysql -u root -p -e "SET GLOBAL local_infile = 1;"
 --             mysql --local-infile=1 -u root -p kodes_retail < sql/load_data.sql
--- note    : parents are loaded before children so every foreign key is checked
+-- Note    : Parents are loaded before children so every foreign key is checked
 --           while loading (foreign_key_checks stays on).
 -- =============================================================================
 
@@ -62,8 +62,8 @@ IGNORE 1 LINES
 
 ANALYZE TABLE countries, customers, products, inventory, invoices, invoice_lines;
 
--- ---------------------------------------------------------------- verification
--- expected rows: countries 43, customers 5938, products 4753, inventory 4737,
+-- ---------------------------------------------------------------- Verification
+-- Expected rows: countries 43, customers 5938, products 4753, inventory 4737,
 --                invoices 48235, invoice_lines 1026947
 SELECT 'countries' AS table_name, COUNT(*) AS row_count FROM countries
 UNION ALL SELECT 'customers',     COUNT(*) FROM customers
@@ -72,5 +72,5 @@ UNION ALL SELECT 'inventory',     COUNT(*) FROM inventory
 UNION ALL SELECT 'invoices',      COUNT(*) FROM invoices
 UNION ALL SELECT 'invoice_lines', COUNT(*) FROM invoice_lines;
 
--- expected net revenue of all imported lines: 19224458.348
+-- Expected net revenue of all imported lines: 19224458.348
 SELECT SUM(quantity * unit_price) AS imported_net_revenue FROM invoice_lines;

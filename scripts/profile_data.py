@@ -1,10 +1,10 @@
 """
-profile the raw kodes csv before cleaning.
+Profile the raw KoDes CSV before cleaning.
 
-finds the anomalies and checks which functional dependencies really hold in
-the flat file. writes data/profile/profile_report.json and prints a summary.
+Finds the anomalies and checks which functional dependencies really hold in
+the flat file. Writes data/profile/profile_report.json and prints a summary.
 
-usage:  python3 scripts/profile_data.py data/raw/online_retail_data.csv
+Usage:  python3 scripts/profile_data.py data/raw/online_retail_data.csv
 """
 import json
 import sys
@@ -25,17 +25,17 @@ has_cust = df["Customer ID"].str.strip() != ""
 
 report = {}
 
-# 1. shape and basic profile
+# 1. Shape and basic profile
 report["rows"] = int(len(df))
 report["columns"] = list(df.columns[:8])
 report["date_range"] = [df["InvoiceDate"].min(), df["InvoiceDate"].max()]
 report["distinct"] = {c: int(df[c].nunique()) for c in df.columns[:8]}
 report["blank_values"] = {c: int((df[c].str.strip() == "").sum()) for c in df.columns[:8]}
 
-# 2. duplicates
+# 2. Duplicates
 report["exact_duplicate_rows"] = int(df.duplicated(subset=df.columns[:8], keep="first").sum())
 
-# 3. invoice types and quantity signs
+# 3. Invoice types and quantity signs
 report["invoice_prefix_rows"] = {k or "(none)": int(v) for k, v in prefix.value_counts().items()}
 report["invoice_prefix_invoices"] = {
     k or "(none)": int(v) for k, v in df.groupby(prefix)["Invoice"].nunique().items()
@@ -47,13 +47,13 @@ report["non_cancellation_negative_qty_all_price0_no_customer"] = bool(
     ((df.price[neg_plain] == 0) & (~has_cust[neg_plain])).all()
 )
 
-# 4. prices
+# 4. Prices
 report["price_negative_rows"] = int((df.price < 0).sum())
 report["price_zero_rows"] = int((df.price == 0).sum())
 report["price_zero_rows_with_customer"] = int(((df.price == 0) & has_cust).sum())
 report["price_max_decimals"] = int(df["Price"].str.split(".").str[1].fillna("").str.len().max())
 
-# 5. missing values
+# 5. Missing values
 blank_desc = df["Description"].str.strip() == ""
 report["blank_description_rows"] = int(blank_desc.sum())
 report["blank_description_all_price0_no_customer"] = bool(
@@ -65,7 +65,7 @@ report["missing_customer_revenue_share_pct"] = round(
     float(df.loc[~has_cust, "revenue"].sum() / df["revenue"].sum() * 100), 2
 )
 
-# 6. text formatting problems
+# 6. Text formatting problems
 report["stockcode_untrimmed_rows"] = int((df.StockCode != df.StockCode.str.strip()).sum())
 report["description_untrimmed_rows"] = int((df.Description != df.Description.str.strip()).sum())
 report["description_double_space_rows"] = int(df.Description.str.contains("  ").sum())
@@ -76,7 +76,7 @@ report["stockcode_case_examples"] = sorted(
     df.loc[upper.isin(case_variants[case_variants > 1].index[:3]), "StockCode"].unique().tolist()
 )
 
-# 7. functional dependency checks (on de-duplicated rows)
+# 7. Functional dependency checks (on de-duplicated rows)
 d = df.drop_duplicates(subset=df.columns[:8]).copy()
 d["sc"] = d.StockCode.str.strip().str.upper()
 d["desc_norm"] = d.Description.str.strip().str.replace(r"\s+", " ", regex=True).str.upper()
@@ -106,7 +106,7 @@ spread = (pd.to_datetime(multi_date["max"]) - pd.to_datetime(multi_date["min"]))
 fd["Invoice -> InvoiceDate"]["max_spread_minutes"] = float(spread.max()) if len(spread) else 0.0
 report["functional_dependencies"] = fd
 
-# 8. special (non-product) stock codes
+# 8. Special (non-product) stock codes
 special = d[~d.sc.str.match(r"^\d{5}")]
 report["special_stockcodes"] = (
     special.groupby("sc")
@@ -117,7 +117,7 @@ report["special_stockcodes"] = (
     .to_dict(orient="records")
 )
 
-# 9. outliers and country labels
+# 9. Outliers and country labels
 report["quantity_min_max"] = [int(df.qty.min()), int(df.qty.max())]
 report["country_labels_to_review"] = [
     c for c in sorted(df.Country.unique())
